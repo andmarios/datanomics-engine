@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"fmt"
+//	"reflect"
 )
 
 var (
@@ -51,8 +52,9 @@ var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/([0-9]+)/?$")
 
 func logHandler(w http.ResponseWriter, r *http.Request) {
 	m := validLog.FindStringSubmatch(r.URL.Path)
-	if m == nil {
+	if len(m) == 0 {
 		http.Error(w, "Sensor not found", http.StatusNotFound)
+		return
 	}
 	debug("Sensor " + m[1] + " sent value " + m[2])
 	fmt.Fprintf(w, "ok")
