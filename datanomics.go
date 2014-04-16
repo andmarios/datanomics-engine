@@ -16,6 +16,7 @@ var (
 	rootdir string
 	port string
 	address string
+	verbose bool
 )
 
 func init() {
@@ -25,6 +26,8 @@ func init() {
 	flag.StringVar(&port,"p", "8080", "listen port" + " (shorthand)")
 	flag.StringVar(&address, "address", "*", "listen address")
 	flag.StringVar(&address, "l", "*", "listen address" + " (shorthand)")
+	flag.BoolVar(&verbose, "verbose", false, "be verbose")
+	flag.BoolVar(&verbose, "v", false, "be verbose" + " (shorthand)")
 
 	if rootdir == "current directory" {
 		rootdir, err :=  filepath.Abs(filepath.Dir(os.Args[0]))
@@ -38,13 +41,20 @@ func init() {
 	}
 }
 
+func debug(s string) {
+	if verbose {
+		log.Print(s)
+	}
+}
+
 var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/([0-9]+)/?$")
+
 func logHandler(w http.ResponseWriter, r *http.Request) {
 	m := validLog.FindStringSubmatch(r.URL.Path)
 	if m == nil {
 		http.Error(w, "Sensor not found", http.StatusNotFound)
 	}
-	log.Print("Sensor " + m[1] + " sent value " + m[2])
+	debug("Sensor " + m[1] + " sent value " + m[2])
 	fmt.Fprintf(w, "ok")
 }
 
