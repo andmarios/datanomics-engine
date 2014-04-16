@@ -8,6 +8,8 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"regexp"
+	"fmt"
 )
 
 var (
@@ -36,8 +38,19 @@ func init() {
 	}
 }
 
+var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/([0-9]+)/?$")
+func logHandler(w http.ResponseWriter, r *http.Request) {
+	m := validLog.FindStringSubmatch(r.URL.Path)
+	if m == nil {
+		http.Error(w, "Sensor not found", http.StatusNotFound)
+	}
+	log.Print("Sensor " + m[1] + " sent value " + m[2])
+	fmt.Fprintf(w, "ok")
+}
+
 func main() {
 	flag.Parse()
+	http.HandleFunc("/log/", logHandler)
 	http.Handle("/", http.FileServer(http.Dir(rootdir)))
 
 	log.Print("Starting webserver. Listening on " + address + ":" + port)
