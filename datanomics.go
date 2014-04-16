@@ -7,7 +7,6 @@ import (
 //	"io/ioutil"
 	"flag"
 	"os"
-	"fmt"
 	"path/filepath"
 )
 
@@ -30,7 +29,7 @@ func init() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println("Webroot set to \"" + rootdir + "\".")
+		log.Print("Webroot set to \"" + rootdir + "\".")
 	}
 	if address == "*" {
 		address = ""
@@ -41,11 +40,10 @@ func main() {
 	flag.Parse()
 	http.Handle("/", http.FileServer(http.Dir(rootdir)))
 
-	fmt.Println("Starting webserver. Listening on " + address + ":" + port)
+	log.Print("Starting webserver. Listening on " + address + ":" + port)
 	err := http.ListenAndServe(address + ":" + port, nil)
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
-		fmt.Println("Couldn't start server, possibly wrong address and/or port?")
+		log.Fatal("Couldn't start server. ListenAndServe: ", err)
 	}
 }
 
