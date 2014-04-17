@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"fmt"
 //	"reflect"
+	"strconv"
 )
 
 var (
@@ -18,6 +19,10 @@ var (
 	port string
 	address string
 	verbose bool
+)
+
+var (
+	d Database
 )
 
 func init() {
@@ -48,7 +53,13 @@ func debug(s string) {
 	}
 }
 
-var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/([0-9]+)/?$")
+func debugln(v ...interface{}) {
+	if verbose {
+		log.Println(v ...)
+	}
+}
+
+var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/([0-9]+[.]{0,1}[0-9]*)/?$")
 
 func logHandler(w http.ResponseWriter, r *http.Request) {
 	m := validLog.FindStringSubmatch(r.URL.Path)
@@ -57,11 +68,19 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	debug("Sensor " + m[1] + " sent value " + m[2])
+	if ! d.Exists(m[1]) {
+		d.Add(m[1])
+	}
+	v, _ := strconv.ParseFloat(m[2], 64)
+	d.Store(m[1], v)
+	debugln("Sensor " + m[1] + " now contains:", d.Load(m[1]))
 	fmt.Fprintf(w, "ok")
 }
 
 func main() {
 	flag.Parse()
+	t := Data{ make(map[string][]float64) }
+	d = t
 	http.HandleFunc("/log/", logHandler)
 	http.Handle("/", http.FileServer(http.Dir(rootdir)))
 
@@ -72,3 +91,42 @@ func main() {
 	}
 }
 
+type Database interface {
+	Add(string)
+	Delete(string)
+	List() string
+	Store(string, float64)
+//	Store(string, int)
+//	Store(string, string)
+	Load(string) []float64
+	Exists(string) bool
+}
+
+type Data struct {
+	Db map[string][]float64
+}
+
+func (d Data) Add(s string) {
+	d.Db[s] = make([]float64, 0, 100000)
+}
+
+func (d Data) Delete(s string) {
+	delete(d.Db, s)
+}
+
+func (d Data) List() string {
+	return "not implemented"
+}
+
+func (d Data) Store(s string, f float64) {
+	d.Db[s] = append(d.Db[s], f)
+}
+
+func (d Data) Load(s string) []float64 {
+	return d.Db[s]
+}
+
+func (d Data) Exists(s string) (b bool) {
+	_, b = d.Db[s]
+	return b
+}
