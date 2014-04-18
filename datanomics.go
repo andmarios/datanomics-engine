@@ -12,6 +12,7 @@ import (
 	"fmt"
 //	"reflect"
 	"strconv"
+	"time"
 )
 
 var (
@@ -59,7 +60,7 @@ func debugln(v ...interface{}) {
 	}
 }
 
-var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/([0-9]+[.]{0,1}[0-9]*)/?$")
+var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/([0-9]+[.]{0,1}[0-9]*)(/([ts])/([0-9]+))?/?$")
 
 func logHandler(w http.ResponseWriter, r *http.Request) {
 	m := validLog.FindStringSubmatch(r.URL.Path)
@@ -68,13 +69,23 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	debug("Sensor " + m[1] + " sent value " + m[2])
-	if ! d.Exists(m[1]) {
-		d.Add(m[1])
-	}
+	//if ! d.Exists(m[1]) {
+	//	d.Add(m[1])
+	//}
 	v, _ := strconv.ParseFloat(m[2], 64)
-	d.Store(m[1], v)
+	if m[4] != "" {
+		t, _ := strconv.ParseInt(m[5], 10, 64)
+		if m[4] == "t" {
+			d.StoreT(m[1], v, time.Unix(t, 0))
+		} else {
+			d.StoreT(m[1], v, time.Unix(time.Now().Unix() - t, 0))
+		}
+	} else {
+		d.Store(m[1], v)
+	}
 	debugln("Sensor " + m[1] + " now contains:", d.Load(m[1]))
 	fmt.Fprintf(w, "ok")
+
 }
 
 func main() {
