@@ -22,7 +22,7 @@ var (
 )
 
 var (
-	d Database
+	d Query
 )
 
 func init() {
@@ -79,7 +79,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-	t := Data{ make(map[string][]float64) }
+	t := Database{ make(map[string] sensorlog) }
 	d = t
 	http.HandleFunc("/log/", logHandler)
 	http.Handle("/", http.FileServer(http.Dir(rootdir)))
