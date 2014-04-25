@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 //	"strings"
+	"html/template"
 )
 
 var (
@@ -27,6 +28,9 @@ var (
 	d Query
 )
 
+var 	templates = template.Must(template.New("list").Parse("list"))
+
+
 func init() {
 	flag.StringVar(&rootdir, "root", "current directory", "webroot directory")
 	flag.StringVar(&rootdir, "d", "current directory", "webroot directory" + " (shorthand)")
@@ -38,9 +42,11 @@ func init() {
 	flag.BoolVar(&verbose, "v", false, "be verbose" + " (shorthand)")
 
 	var err error
-	rootdir, err =  filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		log.Fatal(err)
+	if rootdir == "current directory" {
+		rootdir, err =  filepath.Abs(filepath.Dir(os.Args[0]))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	if address == "*" {
 		address = ""
@@ -60,6 +66,7 @@ func debugln(v ...interface{}) {
 }
 
 var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/([0-9]+[.]{0,1}[0-9]*)(/([ts])/([0-9]+))?/?$")
+var validURLs = regexp.MustCompile("^/")
 
 func logHandler(w http.ResponseWriter, r *http.Request) {
 	m := validLog.FindStringSubmatch(r.URL.Path)
@@ -86,13 +93,43 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ok")
 }
 
+type HomePage struct {
+	SensorList string
+}
+
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	var sl string
+	for _, s := range d.List() {
+		sl = "<div>" + s + "</div>"
+	}
+	err := templates.ExecuteTemplate(w, rootdir + "/templates/index.html", HomePage{sl})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func makeHandler(fn func (http.ResponseWriter, *http.Request)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		m := validURLs.FindStringSubmatch(r.URL.Path)
+		if m == nil {
+			http.NotFound(w, r)
+			return
+		}
+		fn(w, r)
+	}
+}
+
 func main() {
 	flag.Parse()
+
 	t := Database{ make(map[string] sensorlog) }
 	d = t
+	templates = template.Must(template.ParseFiles(rootdir + "/templates/index.html"))
+
 	http.HandleFunc("/log/", logHandler)
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(rootdir + "/assets"))))
-	http.Handle("/", http.FileServer(http.Dir(rootdir)))
+//	http.Handle("/", http.FileServer(http.Dir(rootdir)))
+	http.HandleFunc("/", makeHandler(homeHandler))
 
 	log.Print("Starting webserver. Listening on " + address + ":" + port)
 	log.Print("Webroot set to \"" + rootdir + "\".")
@@ -101,3 +138,7 @@ func main() {
 		log.Fatal("Couldn't start server. ListenAndServe: ", err)
 	}
 }
+
+
+
+

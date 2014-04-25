@@ -5,7 +5,7 @@ import "time"
 type Query interface {
 	Add(string)
 	Delete(string)
-	List() string
+	List() []string
 	Store(string, float64)
 	StoreT(string, float64, time.Time)
 //	Store(string, int)
@@ -36,8 +36,12 @@ func (d Database) Delete(s string) {
 	delete(d.Db, s)
 }
 
-func (d Database) List() string {
-	return "not implemented"
+func (d Database) List() []string {
+	var s []string
+	for key, _ := range d.Db {
+		s = append(s, key)
+	}
+	return s
 }
 
 func (d Database) Store(s string, f float64) {
