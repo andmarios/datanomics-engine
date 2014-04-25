@@ -13,6 +13,7 @@ import (
 //	"reflect"
 	"strconv"
 	"time"
+//	"strings"
 )
 
 var (
@@ -36,12 +37,10 @@ func init() {
 	flag.BoolVar(&verbose, "verbose", false, "be verbose")
 	flag.BoolVar(&verbose, "v", false, "be verbose" + " (shorthand)")
 
-	if rootdir == "current directory" {
-		rootdir, err :=  filepath.Abs(filepath.Dir(os.Args[0]))
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Print("Webroot set to \"" + rootdir + "\".")
+	var err error
+	rootdir, err =  filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
 	}
 	if address == "*" {
 		address = ""
@@ -85,7 +84,6 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	debugln("Sensor " + m[1] + " now contains:", d.Load(m[1]))
 	fmt.Fprintf(w, "ok")
-
 }
 
 func main() {
@@ -93,9 +91,11 @@ func main() {
 	t := Database{ make(map[string] sensorlog) }
 	d = t
 	http.HandleFunc("/log/", logHandler)
+	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(rootdir + "/assets"))))
 	http.Handle("/", http.FileServer(http.Dir(rootdir)))
 
 	log.Print("Starting webserver. Listening on " + address + ":" + port)
+	log.Print("Webroot set to \"" + rootdir + "\".")
 	err := http.ListenAndServe(address + ":" + port, nil)
 	if err != nil {
 		log.Fatal("Couldn't start server. ListenAndServe: ", err)
