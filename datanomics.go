@@ -83,15 +83,15 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type HomePage struct {
-	SensorList string
+	SensorList template.HTML
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	var sl string
 	for _, s := range d.List() {
-		sl = "<div>" + s + "</div>"
+		sl += "<div>" + s + "</div>"
 	}
-	err := templates.ExecuteTemplate(w, "home.html", HomePage{sl})
+	err := templates.ExecuteTemplate(w, "home.html", HomePage{template.HTML(sl)})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
