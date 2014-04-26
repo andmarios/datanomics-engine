@@ -28,7 +28,7 @@ var (
 	d Query
 )
 
-var 	templates = template.Must(template.New("list").Parse("list"))
+var templates *template.Template
 
 
 func init() {
@@ -91,7 +91,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	for _, s := range d.List() {
 		sl = "<div>" + s + "</div>"
 	}
-	err := templates.ExecuteTemplate(w, rootdir + "/templates/index.html", HomePage{sl})
+	err := templates.ExecuteTemplate(w, "home.html", HomePage{sl})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -126,7 +126,7 @@ func main() {
 
 	t := Database{ make(map[string] sensorlog) }
 	d = t
-	templates = template.Must(template.ParseFiles(rootdir + "/templates/index.html"))
+	templates = template.Must(template.ParseFiles(rootdir + "/templates/home.html"))
 
 	http.HandleFunc("/log/", logHandler)
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(rootdir + "/assets"))))
