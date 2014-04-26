@@ -40,17 +40,6 @@ func init() {
 	flag.StringVar(&address, "l", "*", "listen address" + " (shorthand)")
 	flag.BoolVar(&verbose, "verbose", false, "be verbose")
 	flag.BoolVar(&verbose, "v", false, "be verbose" + " (shorthand)")
-
-	var err error
-	if rootdir == "current directory" {
-		rootdir, err =  filepath.Abs(filepath.Dir(os.Args[0]))
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	if address == "*" {
-		address = ""
-	}
 }
 
 func debug(s string) {
@@ -121,6 +110,19 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request)) http.HandlerFunc 
 
 func main() {
 	flag.Parse()
+	var err error
+	if rootdir == "current directory" {
+		rootdir, err =  filepath.Abs(filepath.Dir(os.Args[0]))
+	} else {
+		rootdir, err = filepath.Abs(filepath.Dir(rootdir))
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if address == "*" {
+		address = ""
+	}
 
 	t := Database{ make(map[string] sensorlog) }
 	d = t
@@ -133,7 +135,7 @@ func main() {
 
 	log.Print("Starting webserver. Listening on " + address + ":" + port)
 	log.Print("Webroot set to \"" + rootdir + "\".")
-	err := http.ListenAndServe(address + ":" + port, nil)
+	err = http.ListenAndServe(address + ":" + port, nil)
 	if err != nil {
 		log.Fatal("Couldn't start server. ListenAndServe: ", err)
 	}
