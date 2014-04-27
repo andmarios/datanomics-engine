@@ -15,6 +15,7 @@ import (
 	"time"
 //	"strings"
 	"html/template"
+	"encoding/json"
 )
 
 var (
@@ -55,6 +56,7 @@ func debugln(v ...interface{}) {
 }
 
 var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/([0-9]+[.]{0,1}[0-9]*)(/([ts])/([0-9]+))?/?$")
+var validQuery = regexp.MustCompile("^/q/([a-zA-Z0-9-]+)/?$")
 var validURLs = regexp.MustCompile("^/")
 
 func logHandler(w http.ResponseWriter, r *http.Request) {
@@ -82,6 +84,21 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ok")
 }
 
+func queryHandler(w http.ResponseWriter, r *http.Request) {
+	m := validQuery.FindStringSubmatch(r.URL.Path)
+        if len(m) == 0 {
+                http.Error(w, "Sensor not found", http.StatusNotFound)
+                return
+        }
+	if ! d.Exists(m[1]) {
+		http.Error(w, "Sensor not found", http.StatusNotFound)
+                return
+        }
+	debugln("Query for sensor " + m[1])
+	a, _ := json.Marshal(d.Load(m[1]))
+	fmt.Fprintf(w, string(a))
+}
+
 type HomePage struct {
 	SensorList template.HTML
 }
@@ -89,10 +106,10 @@ type HomePage struct {
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	var sl string
 	for _, s := range d.List() {
-		sl += `<li>
-                                    <a href="view/` + s + `">` + s + `</a>
-                                </li>
-`
+		sl += `
+                 <li>
+                   <a href="view/` + s + `">` + s + `</a>
+                 </li>`
 	}
 	templates = template.Must(template.ParseFiles(rootdir + "/templates/home.html")) // Remove when finish frontend
 	err := templates.ExecuteTemplate(w, "home.html", HomePage{template.HTML(sl)})
@@ -133,6 +150,7 @@ func main() {
 	templates = template.Must(template.ParseFiles(rootdir + "/templates/home.html"))
 
 	http.HandleFunc("/log/", logHandler)
+	http.HandleFunc("/q/", queryHandler)
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(rootdir + "/assets"))))
 //	http.Handle("/", http.FileServer(http.Dir(rootdir)))
 	http.HandleFunc("/", makeHandler(homeHandler))
