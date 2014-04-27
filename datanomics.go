@@ -91,6 +91,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	for _, s := range d.List() {
 		sl += "<div>" + s + "</div>"
 	}
+	templates = template.Must(template.ParseFiles(rootdir + "/templates/home.html")) // Remove when finish frontend
 	err := templates.ExecuteTemplate(w, "home.html", HomePage{template.HTML(sl)})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
