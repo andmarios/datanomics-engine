@@ -89,7 +89,10 @@ type HomePage struct {
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	var sl string
 	for _, s := range d.List() {
-		sl += "<div>" + s + "</div>"
+		sl += `<li>
+                                    <a href="view/` + s + `">` + s + `</a>
+                                </li>
+`
 	}
 	templates = template.Must(template.ParseFiles(rootdir + "/templates/home.html")) // Remove when finish frontend
 	err := templates.ExecuteTemplate(w, "home.html", HomePage{template.HTML(sl)})
