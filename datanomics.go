@@ -16,6 +16,7 @@ import (
 //	"strings"
 	"html/template"
 	"encoding/json"
+	"runtime/pprof"
 )
 
 var (
@@ -129,6 +130,8 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request)) http.HandlerFunc 
 	}
 }
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
 func main() {
 	flag.Parse()
 	var err error
@@ -143,6 +146,16 @@ func main() {
 
 	if address == "*" {
 		address = ""
+	}
+
+	// CPU profiling
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
 	}
 
 	t := Database{ make(map[string] sensorlog) }
@@ -162,7 +175,3 @@ func main() {
 		log.Fatal("Couldn't start server. ListenAndServe: ", err)
 	}
 }
-
-
-
-
