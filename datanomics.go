@@ -55,7 +55,7 @@ func debugln(v ...interface{}) {
 	}
 }
 
-var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/([0-9]+[.]{0,1}[0-9]*)(/([ts])/([0-9]+))?/?$")
+var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/(-?[0-9]+[.]{0,1}[0-9]*)(/([ts])/([0-9]+))?/?$")
 var validQuery = regexp.MustCompile("^/q/([a-zA-Z0-9-]+)/?$")
 var validURLs = regexp.MustCompile("^/")
 
@@ -66,27 +66,21 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	debug("Sensor " + m[1] + " sent value " + m[2])
-	//if ! d.Exists(m[1]) {
-	//	d.Add(m[1])
-	//}
-	//v, _ := strconv.ParseFloat(m[2], 64)
 	if m[4] != "" {
 		t, _ := strconv.ParseInt(m[5], 10, 64)
-		_, told := d.Last(m[1])
+		var tnew time.Time
 		if m[4] == "t" {
-			if time.Unix(t, 0).After(told) {
-				d.StoreT(m[1], m[2], time.Unix(t, 0))
-			} else {
-				http.Error(w, "Sensor send out of order timestamp", http.StatusNotFound)
-				return
-			}
+			tnew = time.Unix(t, 0)
+		} else { // m[4] == "s"
+			tnew = time.Unix(time.Now().Unix() - t, 0)
+		}
+		_, told := d.Last(m[1])
+
+		if tnew.After(told) {
+			d.StoreT(m[1], m[2], tnew)
 		} else {
-			if time.Unix(time.Now().Unix() - t, 0).After(told) {
-				d.StoreT(m[1], m[2], time.Unix(time.Now().Unix() - t, 0))
-			} else {
-                                http.Error(w, "Sensor send out of order timestamp", http.StatusNotFound)
-                                return
-                        }
+			http.Error(w, "Sensor send out of order timestamp", http.StatusNotFound)
+			return
 		}
 	} else {
 		d.Store(m[1], m[2])
