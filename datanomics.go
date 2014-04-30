@@ -32,7 +32,6 @@ var (
 
 var templates *template.Template
 
-
 func init() {
 	flag.StringVar(&rootdir, "root", "current directory", "webroot directory")
 	flag.StringVar(&rootdir, "d", "current directory", "webroot directory" + " (shorthand)")
@@ -70,16 +69,17 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	//if ! d.Exists(m[1]) {
 	//	d.Add(m[1])
 	//}
-	v, _ := strconv.ParseFloat(m[2], 64)
+	//v, _ := strconv.ParseFloat(m[2], 64)
 	if m[4] != "" {
 		t, _ := strconv.ParseInt(m[5], 10, 64)
 		if m[4] == "t" {
-			d.StoreT(m[1], v, time.Unix(t, 0))
+//			if time.Unix(t, 0) > 
+			d.StoreT(m[1], m[2], time.Unix(t, 0))
 		} else {
-			d.StoreT(m[1], v, time.Unix(time.Now().Unix() - t, 0))
+			d.StoreT(m[1], m[2], time.Unix(time.Now().Unix() - t, 0))
 		}
 	} else {
-		d.Store(m[1], v)
+		d.Store(m[1], m[2])
 	}
 	debugln("Sensor " + m[1] + " now contains:", d.Load(m[1]))
 	fmt.Fprintf(w, "ok")
