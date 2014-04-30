@@ -31,6 +31,7 @@ var (
 )
 
 var templates *template.Template
+var homeTemplate *template.Template
 
 func init() {
 	flag.StringVar(&rootdir, "root", "current directory", "webroot directory")
@@ -104,7 +105,13 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(a))
 }
 
+func reloadHandler(w http.ResponseWriter, r *http.Request) {
+	loadTemplates()
+	fmt.Fprintf(w, "templates reloaded")
+}
+
 type HomePage struct {
+	Title string
 	SensorList template.HTML
 }
 
@@ -116,8 +123,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
                    <a href="view/` + s + `">` + s + `</a>
                  </li>`
 	}
-	templates = template.Must(template.ParseFiles(rootdir + "/templates/home.html")) // Remove when finish frontend
-	err := templates.ExecuteTemplate(w, "home.html", HomePage{template.HTML(sl)})
+	err := templates.ExecuteTemplate(w, "home.html", HomePage{"Datanomics alpha", template.HTML(sl)})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -132,6 +138,13 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request)) http.HandlerFunc 
 		}
 		fn(w, r)
 	}
+}
+
+func loadTemplates() {
+	templates = template.Must(template.ParseFiles(rootdir + "/templates/header.html",
+		rootdir + "/templates/menu.html",
+		rootdir + "/templates/footer.html",
+		rootdir + "/templates/home.html"))
 }
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -164,12 +177,12 @@ func main() {
 
 	t := Database{ make(map[string] sensorlog) }
 	d = t
-	templates = template.Must(template.ParseFiles(rootdir + "/templates/home.html"))
+	loadTemplates()
 
 	http.HandleFunc("/log/", logHandler)
 	http.HandleFunc("/q/", queryHandler)
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(rootdir + "/assets"))))
-//	http.Handle("/", http.FileServer(http.Dir(rootdir)))
+	http.HandleFunc("/reload/", reloadHandler)
 	http.HandleFunc("/", makeHandler(homeHandler))
 
 	log.Print("Starting webserver. Listening on " + address + ":" + port)
