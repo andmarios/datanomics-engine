@@ -69,8 +69,11 @@ func (d Database) Exists(s string) (b bool) {
 	return b
 }
 
-func (d Database) Last(s string) (v string, t time.Time) {
-	l := len(d.Db[s].Data)
+func (d Database) Last(s string) (string, time.Time) {
+	l := len(d.Db[s].Data) - 1
+	if l < 0 {
+		return "", time.Unix(0, 0)
+	}
 	return d.Db[s].Data[l], d.Db[s].Timestamp[l]
 }
 

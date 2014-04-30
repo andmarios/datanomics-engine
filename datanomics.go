@@ -72,11 +72,21 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	//v, _ := strconv.ParseFloat(m[2], 64)
 	if m[4] != "" {
 		t, _ := strconv.ParseInt(m[5], 10, 64)
+		_, told := d.Last(m[1])
 		if m[4] == "t" {
-//			if time.Unix(t, 0) > 
-			d.StoreT(m[1], m[2], time.Unix(t, 0))
+			if time.Unix(t, 0).After(told) {
+				d.StoreT(m[1], m[2], time.Unix(t, 0))
+			} else {
+				http.Error(w, "Sensor send out of order timestamp", http.StatusNotFound)
+				return
+			}
 		} else {
-			d.StoreT(m[1], m[2], time.Unix(time.Now().Unix() - t, 0))
+			if time.Unix(time.Now().Unix() - t, 0).After(told) {
+				d.StoreT(m[1], m[2], time.Unix(time.Now().Unix() - t, 0))
+			} else {
+                                http.Error(w, "Sensor send out of order timestamp", http.StatusNotFound)
+                                return
+                        }
 		}
 	} else {
 		d.Store(m[1], m[2])
