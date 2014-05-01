@@ -2,11 +2,19 @@ package main
 
 import (
         "code.google.com/p/go.net/websocket"
+	"time"
 )
 
 type Hub struct {
 	Connections map[*Socket]bool
-	Pipe chan string
+	Pipe chan HometickerJson
+}
+
+type  HometickerJson struct {
+        Title string
+        Icon string
+        Color string
+        Message string
 }
 
 func (h *Hub) Broadcast() {
@@ -14,7 +22,7 @@ func (h *Hub) Broadcast() {
 		select {
 		case str := <-h.Pipe:
 			for s, _ := range h.Connections {
-				err := websocket.Message.Send(s.Ws, string(str))
+				err := websocket.JSON.Send(s.Ws, str)
 				if err != nil {
 					s.Ws.Close()
 					delete(h.Connections, s)
@@ -38,11 +46,15 @@ func (s *Socket) ReceiveMessage() {
 	}
 	s.Ws.Close()
 }
+
+var htj = HometickerJson{"Welcome", "fa-thumbs-up", "primary", "Connected to datanomics."}
 func homeTickerHandler(ws *websocket.Conn) {
 //        fmt.Fprintf(ws, "hello")
+	h.Pipe <- HometickerJson{"Client Connected", "fa-smile-o", "warning", "Address " + string(ws.Request().RemoteAddr) + " joined the party."}
+	time.Sleep(100 * time.Millisecond) // This way the new client won't receive the message above (which is async, so it is delayed a bit).
 	s := &Socket{ws}
 	h.Connections[s] = true
-	websocket.Message.Send(s.Ws, "Welcome to Datanomics.")
+	websocket.JSON.Send(s.Ws, htj)
 	s.ReceiveMessage() // Only way to keep socket open?
 }
 

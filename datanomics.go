@@ -83,16 +83,15 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 			d.StoreT(m[1], m[2], tnew)
 		} else {
 			http.Error(w, "Sensor send out of order timestamp", http.StatusNotFound)
+			h.Pipe <- HometickerJson{"Out of Order Reading", "fa-times-circle", "danger", "Sensor " + m[1] + " out of order value " + m[2] + ". Ignored."}
 			return
 		}
 	} else {
 		if ! d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
-			h.Pipe <- "New sensor: " + m[1] + "."
+			h.Pipe <- HometickerJson{"New Sensor", "fa-check-circle", "success", "Sensor " + m[1] + " succesfully added."}
 		}
 		d.Store(m[1], m[2])
-		a, _ := json.Marshal(d.Load(m[1]))
-		h.Pipe <- "Sensor " + m[1] + " sent value " + m[2] + "."
-		h.Pipe <- string(a)
+		h.Pipe <- HometickerJson{"New Reading", "fa-plus-circle", "info", "Sensor " + m[1] + " sent value " + m[2] + "."}
 	}
 	debugln("Sensor " + m[1] + " now contains:", d.Load(m[1]))
 	fmt.Fprintf(w, "ok")
@@ -193,7 +192,7 @@ func main() {
 	loadTemplates()
 
 	h.Connections = make(map[*Socket]bool)
-	h.Pipe = make(chan string, 1)
+	h.Pipe = make(chan HometickerJson, 1)
 	go h.Broadcast()
 
 	http.HandleFunc("/log/", logHandler)
