@@ -29,6 +29,7 @@ var (
 
 var (
 	d Query
+	h Hub
 )
 
 var templates *template.Template
@@ -85,7 +86,13 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
+		if ! d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
+			h.Pipe <- "New sensor: " + m[1] + "."
+		}
 		d.Store(m[1], m[2])
+		a, _ := json.Marshal(d.Load(m[1]))
+		h.Pipe <- "Sensor " + m[1] + " sent value " + m[2] + "."
+		h.Pipe <- string(a)
 	}
 	debugln("Sensor " + m[1] + " now contains:", d.Load(m[1]))
 	fmt.Fprintf(w, "ok")
@@ -146,10 +153,6 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request)) http.HandlerFunc 
 	}
 }
 
-func homeTickerHandler(ws *websocket.Conn) {
-	fmt.Fprintf(ws, "hello")
-}
-
 func loadTemplates() {
 	templates = template.Must(template.ParseFiles(rootdir + "/templates/header.html",
 		rootdir + "/templates/menu.html",
@@ -189,6 +192,10 @@ func main() {
 	d = t
 	loadTemplates()
 
+	h.Connections = make(map[*Socket]bool)
+	h.Pipe = make(chan string, 1)
+	go h.Broadcast()
+
 	http.HandleFunc("/log/", logHandler)
 	http.HandleFunc("/q/", queryHandler)
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(rootdir + "/assets"))))
@@ -203,3 +210,8 @@ func main() {
 		log.Fatal("Couldn't start server. ListenAndServe: ", err)
 	}
 }
+
+
+
+
+
