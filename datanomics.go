@@ -17,6 +17,7 @@ import (
 	"html/template"
 	"encoding/json"
 	"runtime/pprof"
+	"code.google.com/p/go.net/websocket"
 )
 
 var (
@@ -113,7 +114,10 @@ func reloadHandler(w http.ResponseWriter, r *http.Request) {
 type HomePage struct {
 	Title string
 	SensorList template.HTML
+	CustomScript template.HTML
 }
+
+const homeCustomScript = template.HTML(`<script src="/assets/cjs/hometicker.js"></script>`)
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	var sl string
@@ -123,7 +127,9 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
                    <a href="view/` + s + `">` + s + `</a>
                  </li>`
 	}
-	err := templates.ExecuteTemplate(w, "home.html", HomePage{"Datanomics alpha", template.HTML(sl)})
+	err := templates.ExecuteTemplate(w,
+		"home.html",
+		HomePage{"Datanomics alpha", template.HTML(sl),	homeCustomScript})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -138,6 +144,10 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request)) http.HandlerFunc 
 		}
 		fn(w, r)
 	}
+}
+
+func homeTickerHandler(ws *websocket.Conn) {
+	fmt.Fprintf(ws, "hello")
 }
 
 func loadTemplates() {
@@ -183,6 +193,7 @@ func main() {
 	http.HandleFunc("/q/", queryHandler)
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(rootdir + "/assets"))))
 	http.HandleFunc("/reload/", reloadHandler)
+	http.Handle("/_hometicker", websocket.Handler(homeTickerHandler))
 	http.HandleFunc("/", makeHandler(homeHandler))
 
 	log.Print("Starting webserver. Listening on " + address + ":" + port)
