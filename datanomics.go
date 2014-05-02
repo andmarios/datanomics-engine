@@ -92,10 +92,10 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		if ! d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
-			h.Pipe <- HometickerJson{"New Sensor", "fa-check-circle", "success", "Sensor " + m[1] + " succesfully added."}
+			h.Pipe <- HometickerJson{"New Sensor", "fa-check-circle", "success", "Sensor <em>" + m[1] + "</em> succesfully added."}
 		}
 		d.Store(m[1], m[2])
-		h.Pipe <- HometickerJson{"New Reading", "fa-plus-circle", "info", "Sensor " + m[1] + " sent value " + m[2] + "."}
+		h.Pipe <- HometickerJson{"New Reading", "fa-plus-circle", "info", "Sensor <em>" + m[1] + "</em> sent value <em>" + m[2] + "</em>."}
 	}
 //	debugln("Sensor " + m[1] + " now contains:", d.Load(m[1]))
 	fmt.Fprintf(w, "ok")
