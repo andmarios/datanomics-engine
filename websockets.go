@@ -56,6 +56,7 @@ func homeTickerHandler(ws *websocket.Conn) {
 	h.Connections[s] = true
 	websocket.JSON.Send(s.Ws, htj)
 	s.ReceiveMessage() // Only way to keep socket open?
+	debug(string(ws.Request().RemoteAddr) + " connected to hometicker websocket")
 }
 
 

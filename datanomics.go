@@ -4,7 +4,6 @@ import (
 //	"net"
 	"net/http"
 	"log"
-//	"io/ioutil"
 	"flag"
 	"os"
 	"path/filepath"
@@ -18,6 +17,9 @@ import (
 	"encoding/json"
 	"runtime/pprof"
 	"code.google.com/p/go.net/websocket"
+	"io/ioutil"
+	"os/signal"
+	"syscall"
 )
 
 var (
@@ -25,6 +27,7 @@ var (
 	port string
 	address string
 	verbose bool
+	database string
 )
 
 var (
@@ -44,6 +47,7 @@ func init() {
 	flag.StringVar(&address, "l", "*", "listen address" + " (shorthand)")
 	flag.BoolVar(&verbose, "verbose", false, "be verbose")
 	flag.BoolVar(&verbose, "v", false, "be verbose" + " (shorthand)")
+	flag.StringVar(&database, "database", "db.json", "database file")
 }
 
 func debug(s string) {
@@ -186,14 +190,24 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
-
 	t := Database{ make(map[string] sensorlog) }
-	d = t
+	file, err := ioutil.ReadFile(database)
+	if err != nil {
+		log.Println("Using new database.")
+	} else if err = json.Unmarshal(file, &t); err != nil {
+		log.Println("Database corrupt. Creating new.", err)
+	} else {
+		log.Println("Loaded database.")
+	}
+
+	d = &t
 	loadTemplates()
 
 	h.Connections = make(map[*Socket]bool)
 	h.Pipe = make(chan HometickerJson, 1)
 	go h.Broadcast()
+
+	go cleanup()
 
 	http.HandleFunc("/log/", logHandler)
 	http.HandleFunc("/q/", queryHandler)
@@ -210,7 +224,16 @@ func main() {
 	}
 }
 
-
-
-
-
+func cleanup() {
+        ch := make(chan os.Signal)
+        signal.Notify(ch, syscall.SIGINT)
+        <-ch
+	log.Println("Writing database to disk.")
+	dbs, _ := json.Marshal(d)
+	err := ioutil.WriteFile(database, dbs, 0600)
+	if err != nil {
+		log.Println("Error saving database.")
+	}
+	log.Println("Exiting. Goodbye.")
+	os.Exit(1)
+}
