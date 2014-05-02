@@ -97,7 +97,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		d.Store(m[1], m[2])
 		h.Pipe <- HometickerJson{"New Reading", "fa-plus-circle", "info", "Sensor " + m[1] + " sent value " + m[2] + "."}
 	}
-	debugln("Sensor " + m[1] + " now contains:", d.Load(m[1]))
+//	debugln("Sensor " + m[1] + " now contains:", d.Load(m[1]))
 	fmt.Fprintf(w, "ok")
 }
 
