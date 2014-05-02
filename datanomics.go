@@ -94,6 +94,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		if ! d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
 			h.Pipe <- HometickerJson{"New Sensor", "fa-check-circle", "success", "Sensor <em>" + m[1] + "</em> succesfully added."}
+			sensorList()
 		}
 		d.Store(m[1], m[2])
 		h.Pipe <- HometickerJson{"New Reading", "fa-plus-circle", "info", "Sensor <em>" + m[1] + "</em> sent value <em>" + m[2] + "</em>."}
@@ -122,7 +123,9 @@ func reloadHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "templates reloaded")
 }
 
-func sensorList() template.HTML { // When we add/remove sensors manually, make this run once and store its value for performance?
+var SensorList template.HTML
+
+func sensorList() { // When we add/remove sensors manually, make this run once and store its value for performance?
 	var sl string
 	for _, s := range d.List() {
 		sl += `
@@ -130,7 +133,7 @@ func sensorList() template.HTML { // When we add/remove sensors manually, make t
                    <a href="/view/` + s + `">` + s + `</a>
                  </li>`
 	}
-	return template.HTML(sl)
+	SensorList = template.HTML(sl)
 }
 
 type HomePage struct {
@@ -144,9 +147,10 @@ const homeCustomScript = template.HTML(`<script src="/assets/cjs/hometicker.js">
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	err := templates.ExecuteTemplate(w,
 		"home.html",
-		HomePage{"Datanomics alpha", sensorList(), homeCustomScript})
+		HomePage{"Datanomics alpha", SensorList, homeCustomScript})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Println(err)
 	}
 }
 
@@ -164,14 +168,14 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
         if ! d.Exists(m[1]) {
 		err := templates.ExecuteTemplate(w,
 			"sensor.html",
-			ViewPage{"Datanomics alpha | Sensor not found", "Error", "Sensor not found", sensorList(), viewCustomScript})
+			ViewPage{"Datanomics alpha | Sensor not found", "Error", "Sensor not found", SensorList, viewCustomScript})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	} else {
 		err := templates.ExecuteTemplate(w,
                         "sensor.html",
-                        ViewPage{"Datanomics alpha | " + m[1], m[1], "To be implemented", sensorList(), viewCustomScript})
+                        ViewPage{"Datanomics alpha | " + m[1], m[1], "To be implemented", SensorList, viewCustomScript})
                 if err != nil {
                         http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -236,6 +240,7 @@ func main() {
 	}
 
 	d = &t
+	sensorList()
 	loadTemplates()
 
 	h.Connections = make(map[*Socket]bool)
