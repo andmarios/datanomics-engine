@@ -64,7 +64,8 @@ func debugln(v ...interface{}) {
 
 var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/(-?[0-9]+[.]{0,1}[0-9]*)(/([ts])/([0-9]+))?/?$")
 var validQuery = regexp.MustCompile("^/q/([a-zA-Z0-9-]+)/?$")
-var validURLs = regexp.MustCompile("^/")
+var validRoot = regexp.MustCompile("^/$")
+var validView = regexp.MustCompile("^/view/([a-zA-Z0-9-]+)/?$")
 
 func logHandler(w http.ResponseWriter, r *http.Request) {
 	m := validLog.FindStringSubmatch(r.URL.Path)
@@ -121,6 +122,17 @@ func reloadHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "templates reloaded")
 }
 
+func sensorList() template.HTML { // When we add/remove sensors manually, make this run once and store its value for performance?
+	var sl string
+	for _, s := range d.List() {
+		sl += `
+                 <li>
+                   <a href="/view/` + s + `">` + s + `</a>
+                 </li>`
+	}
+	return template.HTML(sl)
+}
+
 type HomePage struct {
 	Title string
 	SensorList template.HTML
@@ -130,24 +142,46 @@ type HomePage struct {
 const homeCustomScript = template.HTML(`<script src="/assets/cjs/hometicker.js"></script>`)
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	var sl string
-	for _, s := range d.List() {
-		sl += `
-                 <li>
-                   <a href="view/` + s + `">` + s + `</a>
-                 </li>`
-	}
 	err := templates.ExecuteTemplate(w,
 		"home.html",
-		HomePage{"Datanomics alpha", template.HTML(sl),	homeCustomScript})
+		HomePage{"Datanomics alpha", sensorList(), homeCustomScript})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func makeHandler(fn func (http.ResponseWriter, *http.Request)) http.HandlerFunc {
+type ViewPage struct {
+	Title string
+	Sensor string
+	Content string
+	SensorList template.HTML
+	CustomScript template.HTML
+}
+const viewCustomScript = template.HTML("")
+
+func viewHandler(w http.ResponseWriter, r *http.Request) {
+	m := validView.FindStringSubmatch(r.URL.Path)
+        if ! d.Exists(m[1]) {
+		err := templates.ExecuteTemplate(w,
+			"sensor.html",
+			ViewPage{"Datanomics alpha | Sensor not found", "Error", "Sensor not found", sensorList(), viewCustomScript})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	} else {
+		err := templates.ExecuteTemplate(w,
+                        "sensor.html",
+                        ViewPage{"Datanomics alpha | " + m[1], m[1], "To be implemented", sensorList(), viewCustomScript})
+                if err != nil {
+                        http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+
+}
+
+func makeHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regexp) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		m := validURLs.FindStringSubmatch(r.URL.Path)
+		m := rexp.FindStringSubmatch(r.URL.Path)
 		if m == nil {
 			http.NotFound(w, r)
 			return
@@ -160,7 +194,8 @@ func loadTemplates() {
 	templates = template.Must(template.ParseFiles(rootdir + "/templates/header.html",
 		rootdir + "/templates/menu.html",
 		rootdir + "/templates/footer.html",
-		rootdir + "/templates/home.html"))
+		rootdir + "/templates/home.html",
+		rootdir + "/templates/sensor.html"))
 }
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -214,7 +249,8 @@ func main() {
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(rootdir + "/assets"))))
 	http.HandleFunc("/reload/", reloadHandler)
 	http.Handle("/_hometicker", websocket.Handler(homeTickerHandler))
-	http.HandleFunc("/", makeHandler(homeHandler))
+	http.HandleFunc("/view/", makeHandler(viewHandler, *validView))
+	http.HandleFunc("/", makeHandler(homeHandler, *validRoot))
 
 	log.Print("Starting webserver. Listening on " + address + ":" + port)
 	log.Print("Webroot set to \"" + rootdir + "\".")
