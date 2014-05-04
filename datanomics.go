@@ -94,6 +94,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	if ! d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
 		h.Pipe <- HometickerJson{"New sensor: " + m[1], "fa-check-circle", "success",
 			"Sensor <em>" + m[1] + "</em> succesfully added."}
+		d.Add(m[1]) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
 		sensorList()
 	}
 	d.StoreT(m[1], m[2], tnew)
