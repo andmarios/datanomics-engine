@@ -74,9 +74,9 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	debug("Sensor " + m[1] + " sent value " + m[2])
+	tnew := time.Now()
 	if m[4] != "" {
 		t, _ := strconv.ParseInt(m[5], 10, 64)
-		var tnew time.Time
 		if m[4] == "t" {
 			tnew = time.Unix(t, 0)
 		} else { // m[4] == "s"
@@ -84,22 +84,24 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		_, told := d.Last(m[1])
 
-		if tnew.After(told) {
-			d.StoreT(m[1], m[2], tnew)
-		} else {
+		if ! tnew.After(told) {
 			http.Error(w, "Sensor send out of order timestamp", http.StatusNotFound)
-			h.Pipe <- HometickerJson{"Out of Order Reading", "fa-times-circle", "danger", "Sensor " + m[1] + " out of order value " + m[2] + ". Ignored."}
+			h.Pipe <- HometickerJson{m[1] + ": out of order reading", "fa-times-circle", "danger",
+				m[1] + "</em> sent out of order value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>. Ignored."}
 			return
 		}
-	} else {
-		if ! d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
-			h.Pipe <- HometickerJson{"New Sensor", "fa-check-circle", "success", "Sensor <em>" + m[1] + "</em> succesfully added."}
-			sensorList()
-		}
-		d.Store(m[1], m[2])
-		h.Pipe <- HometickerJson{"New Reading", "fa-plus-circle", "info", "Sensor <em>" + m[1] + "</em> sent value <em>" + m[2] + "</em>."}
 	}
-//	debugln("Sensor " + m[1] + " now contains:", d.Load(m[1]))
+	if ! d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
+		h.Pipe <- HometickerJson{"New sensor: " + m[1], "fa-check-circle", "success",
+			"Sensor <em>" + m[1] + "</em> succesfully added."}
+		sensorList()
+	}
+	d.StoreT(m[1], m[2], tnew)
+	h.Pipe <- HometickerJson{m[1] +": new reading", "fa-plus-circle", "info",
+		m[1] + "</em> sent value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>"}
+
+	//		h.Pipe <- HometickerJson{"New Reading", "fa-plus-circle", "info", "Sensor <em>" + m[1] + "</em> sent value <em>" + m[2] + "</em>."}
+
 	fmt.Fprintf(w, "ok")
 }
 
@@ -173,9 +175,10 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	} else {
+		a, _ := json.Marshal(d.Load(m[1]))
 		err := templates.ExecuteTemplate(w,
                         "sensor.html",
-                        ViewPage{"Datanomics alpha | " + m[1], m[1], "To be implemented", SensorList, viewCustomScript})
+                        ViewPage{"Datanomics alpha | " + m[1], m[1], string(a), SensorList, viewCustomScript})
                 if err != nil {
                         http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

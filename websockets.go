@@ -26,6 +26,7 @@ func (h *Hub) Broadcast() {
 				if err != nil {
 					s.Ws.Close()
 					delete(h.Connections, s)
+					// Note for sensorticker implementation: here may go code that deletes the hub when it is empty
 				}
 			}
 		}
