@@ -3,19 +3,32 @@ package main
 import (
         "code.google.com/p/go.net/websocket"
 	"time"
+//	"regexp"
 )
 
 type Hub struct {
 	Connections map[*Socket]bool
-	Pipe chan HometickerJson
+	Pipe chan Hometicker
 }
 
-type  HometickerJson struct {
+type Hometicker struct {
         Title string
         Icon string
         Color string
         Message string
 }
+
+type SuperHub struct {
+	Connections map[string]map[*Socket]bool
+	Pipe chan Sensorticker
+}
+
+type Sensorticker struct {
+	Sensor string
+	Value string
+	Timestamp string
+}
+
 
 func (h *Hub) Broadcast() {
 	for {
@@ -48,10 +61,11 @@ func (s *Socket) ReceiveMessage() {
 	s.Ws.Close()
 }
 
-var htj = HometickerJson{"Welcome", "fa-thumbs-up", "primary", "Connected to datanomics."}
+var htj = Hometicker{"Welcome", "fa-thumbs-up", "primary", "Connected to datanomics."}
+
 func homeTickerHandler(ws *websocket.Conn) {
 //        fmt.Fprintf(ws, "hello")
-	h.Pipe <- HometickerJson{"Client Connected", "fa-smile-o", "warning", "Address " + string(ws.Request().RemoteAddr) + " joined the party."}
+	h.Pipe <- Hometicker{"Client Connected", "fa-smile-o", "warning", "Address " + string(ws.Request().RemoteAddr) + " joined the party."}
 	time.Sleep(100 * time.Millisecond) // This way the new client won't receive the message above (which is async, so it is delayed a bit).
 	s := &Socket{ws}
 	h.Connections[s] = true
@@ -59,6 +73,21 @@ func homeTickerHandler(ws *websocket.Conn) {
 	s.ReceiveMessage() // Only way to keep socket open?
 	debug(string(ws.Request().RemoteAddr) + " connected to hometicker websocket")
 }
+
+// var validSensorWS = regexp.MustCompile("^/sws/([a-zA-Z0-9-]+)/?$")
+
+// func sensorTickerHandler(ws *websocket.Conn) {
+// 	m := validSensorWS.FindStringSubmatch(ws.Path)
+//         if len(m) == 0 {
+// 		ws.Close()
+//                 return
+//         }
+// 	if ! d.Exists(m[1]) {
+// 		ws.Close()
+// 		return
+// 	}
+// 	s := &Socket{ws}
+// }
 
 
 

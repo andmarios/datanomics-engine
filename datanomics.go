@@ -86,22 +86,22 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 
 		if ! tnew.After(told) {
 			http.Error(w, "Sensor send out of order timestamp", http.StatusNotFound)
-			h.Pipe <- HometickerJson{m[1] + ": out of order reading", "fa-times-circle", "danger",
+			h.Pipe <- Hometicker{m[1] + ": out of order reading", "fa-times-circle", "danger",
 				m[1] + "</em> sent out of order value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>. Ignored."}
 			return
 		}
 	}
 	if ! d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
-		h.Pipe <- HometickerJson{"New sensor: " + m[1], "fa-check-circle", "success",
+		h.Pipe <- Hometicker{"New sensor: " + m[1], "fa-check-circle", "success",
 			"Sensor <em>" + m[1] + "</em> succesfully added."}
 		d.Add(m[1]) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
 		sensorList()
 	}
 	d.StoreT(m[1], m[2], tnew)
-	h.Pipe <- HometickerJson{m[1] +": new reading", "fa-plus-circle", "info",
+	h.Pipe <- Hometicker{m[1] +": new reading", "fa-plus-circle", "info",
 		m[1] + "</em> sent value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>"}
 
-	//		h.Pipe <- HometickerJson{"New Reading", "fa-plus-circle", "info", "Sensor <em>" + m[1] + "</em> sent value <em>" + m[2] + "</em>."}
+	//		h.Pipe <- Hometicker{"New Reading", "fa-plus-circle", "info", "Sensor <em>" + m[1] + "</em> sent value <em>" + m[2] + "</em>."}
 
 	fmt.Fprintf(w, "ok")
 }
@@ -248,7 +248,7 @@ func main() {
 	loadTemplates()
 
 	h.Connections = make(map[*Socket]bool)
-	h.Pipe = make(chan HometickerJson, 1)
+	h.Pipe = make(chan Hometicker, 1)
 	go h.Broadcast()
 
 	go cleanup()
