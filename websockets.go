@@ -18,6 +18,13 @@ type Hometicker struct {
         Message string
 }
 
+// ---------------- READ TO IMPLEMENT
+// Sensors ws will be at /_sensorticker
+// When someone connects, he should send the sensor he is interested in.
+// If the sensor exists we add him to SuperHub.Connections[sensor]
+// When a conn close, if the sensor has 0 listeners, delete him from SuperHub.Connections
+// -----------------------------------
+
 type SuperHub struct {
 	Connections map[string]map[*Socket]bool
 	Pipe chan Sensorticker

@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"time"
+	"sync"
+)
 
 type Query interface {
 	Add(string)
@@ -27,11 +30,15 @@ type Database struct {
 	Db map[string]sensorlog
 }
 
+var mutexA = &sync.Mutex{}
+
 func (d Database) Add(s string) {
 	t := sensorlog{}
-	t.Data = make([]string, 0, 100000)
-	t.Timestamp = make([]time.Time, 0, 100000)
+	t.Data = make([]string, 0, 1)
+	t.Timestamp = make([]time.Time, 0, 1)
+	mutexA.Lock()
 	d.Db[s] = t
+	mutexA.Unlock()
 }
 
 func (d Database) Delete(s string) {
@@ -57,7 +64,9 @@ func (d Database) StoreT(s string, v string, t time.Time) {
 	c := d.Db[s]
 	c.Data = append(d.Db[s].Data, v)
 	c.Timestamp = append(d.Db[s].Timestamp, t)
+	mutexA.Lock()
 	d.Db[s] = c
+	mutexA.Unlock()
 }
 
 func (d Database) Load(s string) sensorlog {

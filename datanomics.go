@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os/signal"
 	"syscall"
+	"bytes"
 )
 
 var (
@@ -95,7 +96,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		h.Pipe <- Hometicker{"New sensor: " + m[1], "fa-check-circle", "success",
 			"Sensor <em>" + m[1] + "</em> succesfully added."}
 		d.Add(m[1]) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
-		sensorList()
+		// sensorList()
 	}
 	d.StoreT(m[1], m[2], tnew)
 	h.Pipe <- Hometicker{m[1] +": new reading", "fa-plus-circle", "info",
@@ -129,14 +130,17 @@ func reloadHandler(w http.ResponseWriter, r *http.Request) {
 var SensorList template.HTML
 
 func sensorList() { // When we add/remove sensors manually, make this run once and store its value for performance?
-	var sl string
+	// This is nice. Initially I used a string instead of a buffer. But concatenating huge strings is slow.
+	// So, when testing with 1.000.000 sensors the code needed many minutes (maybe hour?) to enumerate the
+	// sensors. Now it takes 1 second!!!
+	var buffer bytes.Buffer
 	for _, s := range d.List() {
-		sl += `
+		buffer.WriteString(`
                  <li>
                    <a href="/view/` + s + `">` + s + `</a>
-                 </li>`
+                 </li>`)
 	}
-	SensorList = template.HTML(sl)
+	SensorList = template.HTML(buffer.String())
 }
 
 type HomePage struct {
