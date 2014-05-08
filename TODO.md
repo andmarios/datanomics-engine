@@ -14,3 +14,4 @@
 - Users
 - Log to be: /log/UID/sensor-name/[st]/timestamp. UID instead of username to prevent guessing
 - Manually add/delete sensors
+- Cache/expire static items
