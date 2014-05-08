@@ -23,6 +23,8 @@ import (
 	"bytes"
 )
 
+var version = "Datanomics 6277018+"
+
 var (
 	rootdir string
 	port string
@@ -96,14 +98,11 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		h.Pipe <- Hometicker{"New sensor: " + m[1], "fa-check-circle", "success",
 			"Sensor <em>" + m[1] + "</em> succesfully added."}
 		d.Add(m[1]) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
-		// sensorList()
+		sensorList()
 	}
 	d.StoreT(m[1], m[2], tnew)
 	h.Pipe <- Hometicker{m[1] +": new reading", "fa-plus-circle", "info",
 		m[1] + "</em> sent value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>"}
-
-	//		h.Pipe <- Hometicker{"New Reading", "fa-plus-circle", "info", "Sensor <em>" + m[1] + "</em> sent value <em>" + m[2] + "</em>."}
-
 	fmt.Fprintf(w, "ok")
 }
 
@@ -188,12 +187,14 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
                         http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
-
 }
 
 func makeHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regexp) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := rexp.FindStringSubmatch(r.URL.Path)
+		logRequest(r)
+		w.Header().Add("Server", version)
+		w.Header().Add("Vary", "Accept-Encoding")
 		if m == nil {
 			http.NotFound(w, r)
 			return
@@ -258,7 +259,7 @@ func main() {
 	go cleanup()
 
 	http.HandleFunc("/log/", logHandler)
-	http.HandleFunc("/q/", queryHandler)
+	http.HandleFunc("/q/", makeHandler(queryHandler, *validQuery))
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(rootdir + "/assets"))))
 	http.HandleFunc("/reload/", reloadHandler)
 	http.Handle("/_hometicker", websocket.Handler(homeTickerHandler))
@@ -285,4 +286,16 @@ func cleanup() {
 	}
 	log.Println("Exiting. Goodbye.")
 	os.Exit(1)
+}
+
+// This function was copied from https://github.com/mkaz/lanyon/blob/master/src/main.go
+func logRequest(r *http.Request) {
+	now := time.Now()
+	log.Printf("%s - %s [%s] \"%s %s %s\" ",
+		r.RemoteAddr,
+		"",
+		now.Format("02/Jan/2006:15:04:05 -0700"),
+		r.Method,
+		r.URL.RequestURI(),
+		r.Proto)
 }
