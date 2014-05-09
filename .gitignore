@@ -3,3 +3,4 @@ datanomics
 *#
 *.prof
 *.json
+sensors/*

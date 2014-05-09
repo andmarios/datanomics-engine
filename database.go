@@ -3,28 +3,180 @@ package main
 import (
 	"time"
 	"sync"
+	"log"
+	"strconv"
+	"bytes"
+	"fmt"
+	"github.com/ziutek/rrd"
 )
 
 type Query interface {
 	Add(string)
+	AddT(string, time.Time)
 	Delete(string)
 	List() []string
 	Store(string, string)
 	StoreT(string, string, time.Time)
-//	Store(string, int)
-//	Store(string, string)
-	Load(string) sensorlog
+	Load(string) interface{}
 	Exists(string) bool
 	Last(string) (string, time.Time)
-
+	Close()
+	Graph(string)
 }
 
+// RRD database implementation
+
+var (
+	step = uint(30) // seconds
+	heartbeat = 2 * step
+)
+
+type DatabaseRRD struct {
+	Sensor map[string]string
+	Open map[string]*rrd.Updater
+}
+
+func (d DatabaseRRD) Add(s string) {
+	d.AddT(s, time.Now())
+}
+
+func (d DatabaseRRD) AddT(s string, t time.Time) {
+	dbfile := sensorDataDir + "/" + s
+	c := rrd.NewCreator(dbfile, t.Add(-time.Second), step)
+	c.DS("g", "GAUGE", heartbeat, 0, 60) // See what these numbers are!!!!
+	c.RRA("AVERAGE", 0.5, 1, 720) // Hold 720 datapoints at fine resolution
+	c.RRA("AVERAGE", 0.5, 4, 720) // Hold 720 datapoints at resolution/4
+	c.RRA("AVERAGE", 0.5, 10, 8640)
+	c.RRA("AVERAGE", 0.5, 60, 17532)
+	err := c.Create(true)
+	if err != nil {
+		log.Println(err)
+	}
+	d.Sensor[s] = s
+	d.Open[s] = rrd.NewUpdater(dbfile)
+}
+
+func (d DatabaseRRD) Delete(s string) {
+	_, exists := d.Sensor[s]
+	if exists {
+		_, open := d.Open[s]
+		if open {
+			delete(d.Open, s)
+		}
+		// TODO: Delete FILE
+		delete(d.Sensor, s)
+	}
+}
+
+func (d DatabaseRRD) List() []string {
+        var s []string
+        for key, _ := range d.Sensor {
+                s = append(s, key)
+        }
+        return s
+}
+
+func (d DatabaseRRD) Store(s string, v string) {
+	d.StoreT(s, v, time.Now())
+}
+
+func (d DatabaseRRD) StoreT(s string, v string, t time.Time) {
+	dbfile := sensorDataDir + "/" + s
+	_, open := d.Open[s]
+	if ! open {
+		d.Open[s] = rrd.NewUpdater(dbfile)
+	}
+	f, _ := strconv.ParseFloat(v, 0)
+	d.Open[s].Cache(t, f)
+	err := d.Open[s].Update() // TODO: Skip this step and run it periodically
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (d DatabaseRRD) Load(s string) interface{} {
+	dbfile := sensorDataDir + "/" + s
+	inf, err := rrd.Info(dbfile)
+        if err != nil {
+                log.Println(err)
+        }
+	end := time.Unix(int64(inf["last_update"].(uint)), 0)
+	start := end.Add(-60 * 60 * 24 * time.Second)
+	data, err := rrd.Fetch(dbfile, "AVERAGE", start, end, time.Duration(step) * time.Second)
+	defer data.FreeValues()
+        if err != nil {
+                log.Println(err)
+        }
+
+	var buffer bytes.Buffer
+        row := 0
+	buffer.WriteString("{")
+        for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
+                buffer.WriteString(fmt.Sprintf("[\"%d\",", ti, ti.Unix()))
+                for i := 0; i < len(data.DsNames); i++ {
+                        v := data.ValueAt(i, row)
+                        buffer.WriteString(fmt.Sprintf("\"\t%e\"", v))
+                }
+			buffer.WriteString(fmt.Sprintf("],\n"))
+                row++
+        }
+	buffer.WriteString("}")
+
+	return buffer.String()
+}
+
+func (d DatabaseRRD) Exists(s string) bool {
+	_, exists := d.Sensor[s]
+	if ! exists {
+		return false
+	}
+	return true
+}
+
+func (d DatabaseRRD) Last(s string) (v string, t time.Time) {
+	// dbfile := sensorDataDir + "/" + s
+        // inf, err := rrd.Info(dbfile)
+        // if err != nil {
+        //         log.Println(err)
+        //}
+        // end := time.Unix(int64(inf["last_update"].(uint)), 0)
+	return "unknown", time.Now() // TODO: return last value
+}
+
+func (d DatabaseRRD) Close() {
+	for s, _ := range d.Open {
+		d.Open[s].Update()
+		delete(d.Open, s)
+	}
+}
+
+func (d DatabaseRRD) Graph(s string) {
+	dbfile := sensorDataDir + "/" + s
+	g := rrd.NewGrapher()
+        g.SetTitle(s)
+        g.SetVLabel("some variable")
+        g.SetSize(1600, 800)
+        g.SetWatermark("some watermark")
+        g.Def("v1", dbfile, "g", "AVERAGE")
+        g.VDef("avg1", "v1,AVERAGE")
+        g.Line(1, "v1", "ff0000", "var 1")
+        g.GPrint("avg1", "avg1=%lf")
+        g.Print("avg1", "avg1=%lf")
+
+        now := time.Now()
+
+        _, err := g.SaveGraph(serverRootDir + "/assets/temp/" + s + ".png", now.Add(-600*time.Second), now)
+        if err != nil {
+                log.Println(err)
+        }
+}
+
+// Old database implementation, in memory
 type sensorlog struct {
 	Data []string
 	Timestamp []time.Time
 	Info map[string] string
 }
-
 
 type Database struct {
 	Db map[string]sensorlog
@@ -39,6 +191,10 @@ func (d Database) Add(s string) {
 	mutexA.Lock()
 	d.Db[s] = t
 	mutexA.Unlock()
+}
+
+func (d Database) AddT(s string, t time.Time) {
+	d.Add(s)
 }
 
 func (d Database) Delete(s string) {
@@ -69,7 +225,7 @@ func (d Database) StoreT(s string, v string, t time.Time) {
 	mutexA.Unlock()
 }
 
-func (d Database) Load(s string) sensorlog {
+func (d Database) Load(s string) interface{} {
 	return d.Db[s]
 }
 
@@ -86,9 +242,11 @@ func (d Database) Last(s string) (string, time.Time) {
 	return d.Db[s].Data[l], d.Db[s].Timestamp[l]
 }
 
+func (d Database) Close() {
+}
 
-
-
+func (d Database) Graph(){
+}
 
 
 

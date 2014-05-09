@@ -18,16 +18,18 @@ import (
 	"io/ioutil"
 	"os/signal"
 	"syscall"
+	"github.com/ziutek/rrd"
 )
 
 var version = "Datanomics 742cc3a+"
 
 var (
-	rootdir string
+	serverRootDir string
 	port string
 	address string
 	verbose bool
 	database string
+	sensorDataDir string
 )
 
 var (
@@ -36,8 +38,8 @@ var (
 )
 
 func init() {
-	flag.StringVar(&rootdir, "root", "current directory", "webroot directory")
-	flag.StringVar(&rootdir, "d", "current directory", "webroot directory" + " (shorthand)")
+	flag.StringVar(&serverRootDir, "root", "current directory", "webroot directory")
+	flag.StringVar(&serverRootDir, "d", "current directory", "webroot directory" + " (shorthand)")
 	flag.StringVar(&port,"port", "8080", "listen port")
 	flag.StringVar(&port,"p", "8080", "listen port" + " (shorthand)")
 	flag.StringVar(&address, "address", "*", "listen address")
@@ -45,6 +47,8 @@ func init() {
 	flag.BoolVar(&verbose, "verbose", false, "be verbose")
 	flag.BoolVar(&verbose, "v", false, "be verbose" + " (shorthand)")
 	flag.StringVar(&database, "database", "db.json", "database file")
+	flag.StringVar(&sensorDataDir, "storage", "sensors", "directory to store sensor data")
+	flag.StringVar(&sensorDataDir, "s", "sensors", "directory to store sensor data" + " (shorthand)")
 }
 
 func debug(s string) {
@@ -79,11 +83,11 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regex
 }
 
 func loadTemplates() {
-	templates = template.Must(template.ParseFiles(rootdir + "/templates/header.html",
-		rootdir + "/templates/menu.html",
-		rootdir + "/templates/footer.html",
-		rootdir + "/templates/home.html",
-		rootdir + "/templates/sensor.html"))
+	templates = template.Must(template.ParseFiles(serverRootDir + "/templates/header.html",
+		serverRootDir + "/templates/menu.html",
+		serverRootDir + "/templates/footer.html",
+		serverRootDir + "/templates/home.html",
+		serverRootDir + "/templates/sensor.html"))
 }
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -91,10 +95,19 @@ var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 func main() {
 	flag.Parse()
 	var err error
-	if rootdir == "current directory" {
-		rootdir, err =  filepath.Abs(filepath.Dir(os.Args[0]))
+	if serverRootDir == "current directory" {
+		serverRootDir, err =  filepath.Abs(filepath.Dir(os.Args[0]))
 	} else {
-		rootdir, err = filepath.Abs(filepath.Dir(rootdir))
+		serverRootDir, err = filepath.Abs(filepath.Dir(serverRootDir))
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if sensorDataDir == "sensors" {
+		sensorDataDir, err =  filepath.Abs(filepath.Dir(os.Args[0] + "/sensors"))
+	} else {
+		sensorDataDir, err = filepath.Abs(filepath.Dir(sensorDataDir))
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -113,7 +126,8 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
-	t := Database{ make(map[string] sensorlog) }
+	// t := Database{ make(map[string] sensorlog) }
+	t := DatabaseRRD{make(map[string]string), make(map[string]*rrd.Updater)}
 	file, err := ioutil.ReadFile(database)
 	if err != nil {
 		log.Println("Using new database.")
@@ -135,14 +149,14 @@ func main() {
 
 	http.HandleFunc("/log/", logHandler)
 	http.HandleFunc("/q/", makeHandler(queryHandler, *validQuery))
-	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(rootdir + "/assets"))))
+	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(serverRootDir + "/assets"))))
 	http.HandleFunc("/reload/", reloadHandler)
 	http.Handle("/_hometicker", websocket.Handler(homeTickerHandler))
 	http.HandleFunc("/view/", makeHandler(viewHandler, *validView))
 	http.HandleFunc("/", makeHandler(homeHandler, *validRoot))
 
 	log.Print("Starting webserver. Listening on " + address + ":" + port)
-	log.Print("Webroot set to \"" + rootdir + "\".")
+	log.Print("Webroot set to \"" + serverRootDir + "\".")
 	err = http.ListenAndServe(address + ":" + port, nil)
 	if err != nil {
 		log.Fatal("Couldn't start server. ListenAndServe: ", err)
@@ -154,6 +168,7 @@ func cleanup() {
         signal.Notify(ch, syscall.SIGINT)
         <-ch
 	log.Println("Writing database to disk.")
+	d.Close()
 	dbs, _ := json.Marshal(d)
 	err := ioutil.WriteFile(database, dbs, 0600)
 	if err != nil {

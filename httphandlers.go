@@ -29,21 +29,22 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		} else { // m[4] == "s"
 			tnew = time.Unix(time.Now().Unix() - t, 0)
 		}
-		_, told := d.Last(m[1])
-
-		if ! tnew.After(told) {
-			http.Error(w, "Sensor send out of order timestamp", http.StatusNotFound)
-			h.Pipe <- Hometicker{m[1] + ": out of order reading", "fa-times-circle", "danger",
-				m[1] + "</em> sent out of order value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>. Ignored."}
-			return
-		}
 	}
 	if ! d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
 		h.Pipe <- Hometicker{"New sensor: " + m[1], "fa-check-circle", "success",
 			"Sensor <em>" + m[1] + "</em> succesfully added."}
-		d.Add(m[1]) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
+		d.AddT(m[1], tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
 		sensorList()
 	}
+	// TODO: Fix it.
+	// _, told := d.Last(m[1])
+	// if ! tnew.After(told) {
+	// 	http.Error(w, "Sensor send out of order timestamp", http.StatusNotFound)
+	// 	h.Pipe <- Hometicker{m[1] + ": out of order reading", "fa-times-circle", "danger",
+	// 		m[1] + "</em> sent out of order value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>. Ignored."}
+	// 	return
+	// }
+
 	d.StoreT(m[1], m[2], tnew)
 	h.Pipe <- Hometicker{m[1] +": new reading", "fa-plus-circle", "info",
 		m[1] + "</em> sent value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>"}
@@ -107,7 +108,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 type ViewPage struct {
 	Title string
 	Sensor string
-	Content string
+	Img string
 	SensorList template.HTML
 	CustomScript template.HTML
 }
@@ -123,13 +124,24 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	} else {
-		a, _ := json.Marshal(d.Load(m[1]))
+		d.Graph(m[1])
+		// a, _ := json.Marshal(d.Load(m[1]))
 		err := templates.ExecuteTemplate(w,
                         "sensor.html",
-                        ViewPage{"Datanomics alpha | " + m[1], m[1], string(a), SensorList, viewCustomScript})
+                        ViewPage{"Datanomics alpha | " + m[1], m[1], "/assets/temp/" + m[1] + ".png", SensorList, viewCustomScript})
                 if err != nil {
                         http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 }
+
+
+
+
+
+
+
+
+
+
 
