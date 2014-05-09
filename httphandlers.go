@@ -48,6 +48,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	d.StoreT(m[1], m[2], tnew)
 	h.Pipe <- Hometicker{m[1] +": new reading", "fa-plus-circle", "info",
 		m[1] + "</em> sent value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>"}
+	sh.Pipe <- m[1]
 	fmt.Fprintf(w, "ok")
 }
 
@@ -112,50 +113,12 @@ type ViewPage struct {
 	SensorList template.HTML
 	CustomScript template.HTML
 }
+
 const viewCustomScript = template.HTML(`    <!--[if lte IE 8]><script src="js/excanvas.min.js"></script><![endif]-->
     <script src="/assets/js/plugins/flot/jquery.flot.js"></script>
     <script src="/assets/js/plugins/flot/jquery.flot.tooltip.min.js"></script>
     <script src="/assets/js/plugins/flot/jquery.flot.resize.js"></script>
-    <script>
-      var options = {
-        xaxes: [{
-            mode: 'time'
-        }],
-        yaxes: [{
-            min: null,
-            max: null
-        }, {
-            // align if we are to the right
-            alignTicksWithAxis: 1,
-            position: 'right'
-        }],
-        series: {
-            lines: {
-                 show: true,
-                 fill: true
-            },
-            points: { show: false }
-        },
-        legend: {
-            position: 'sw'
-        },
-        grid: {
-            hoverable: true //IMPORTANT! this is needed for tooltip to work
-        },
-        tooltip: true,
-        tooltipOpts: {
-            content: "%s for %x was %y.2",
-            xDateFormat: "%y-%0m-%0d %0H:%0M",
-            yDateFormat: null,
-            onHover: function(flotItem, $tooltipEl) {
-              // console.log(flotItem, $tooltipEl);
-            }
-        }
-      };
-      $(document).ready(function() {
-         $.plot($("#sensorGraph"), [{ data: sData, label: "Sensor AVG Data"}], options );
-      });
-    </script>
+    <script src="/assets/cjs/sensorticker.js"></script>
 `)
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
@@ -170,9 +133,11 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		//d.Graph(m[1])
 		//a, _ := json.Marshal(d.Load(m[1]))
+		s := d.Load(m[1])
+		s += "; var sensorID = '" + m[1] + "';"
 		err := templates.ExecuteTemplate(w,
                         "sensor.html",
-                        ViewPage{"Datanomics alpha | " + m[1], m[1], template.JS(d.Load(m[1])), SensorList, viewCustomScript})
+                        ViewPage{"Datanomics alpha | " + m[1], m[1], template.JS(s), SensorList, viewCustomScript})
                 if err != nil {
                         http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

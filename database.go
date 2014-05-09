@@ -17,6 +17,7 @@ type Query interface {
 	List() []string
 	Store(string, string)
 	StoreT(string, string, time.Time)
+	LoadR(string) graphPoint
 	Load(string) string
 	Exists(string) bool
 	Last(string) (string, time.Time)
@@ -24,6 +25,10 @@ type Query interface {
 	Graph(string)
 }
 
+type graphPoint struct {
+	Time int64
+	Value float64
+}
 // RRD database implementation
 
 var (
@@ -111,7 +116,7 @@ func (d DatabaseRRD) Load(s string) string {
                 log.Println(err)
         }
 	end := time.Unix(int64(inf["last_update"].(uint)), 0)
-	start := end.Add(-60 * 60 * 6 * time.Second)
+	start := end.Add(-60 * 60 * 3 * time.Second)
 	data, err := rrd.Fetch(dbfile, "AVERAGE", start, end, time.Duration(step) * time.Second)
 	defer data.FreeValues()
         if err != nil {
@@ -132,6 +137,40 @@ func (d DatabaseRRD) Load(s string) string {
 	buffer.WriteString("]")
 
 	return buffer.String()
+}
+
+func (d DatabaseRRD) LoadR(s string) graphPoint {
+	dbfile := sensorDataDir + "/" + s
+	inf, err := rrd.Info(dbfile)
+        if err != nil {
+                log.Println(err)
+        }
+	end := time.Unix(int64(inf["last_update"].(uint)), 0)
+	start := end.Add(-60 * 60 * 6 * time.Second)
+	data, err := rrd.Fetch(dbfile, "AVERAGE", start, end, time.Duration(step) * time.Second)
+	defer data.FreeValues()
+        if err != nil {
+                log.Println(err)
+        }
+
+	//var buffer bytes.Buffer
+	var r graphPoint
+        row := 0
+//	buffer.WriteString("[")
+        for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
+//                for i := 0; i < len(data.DsNames); i++ {
+//			t := graphPoint{ti.Unix(), data.ValueAt(i, row)}
+//			r.Data = append(r.Data, t)
+ //               }
+                row++
+        }
+	r.Time = end.Unix()
+	r.Value = data.ValueAt(0, row -1)
+//	buffer.Truncate(buffer.Len() - 1)
+//	buffer.WriteString("]")
+
+//	return buffer.String()
+	return r
 }
 
 func (d DatabaseRRD) Exists(s string) bool {

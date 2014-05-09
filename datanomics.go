@@ -35,6 +35,7 @@ var (
 var (
 	d Query
 	h Hub
+	sh SensorHub
 )
 
 func init() {
@@ -145,6 +146,10 @@ func main() {
 	h.Pipe = make(chan Hometicker, 1)
 	go h.Broadcast()
 
+	sh.Connections = make(map[string]map[*Socket]bool)
+	sh.Pipe = make(chan string)
+	go sh.Broadcast()
+
 	go cleanup()
 
 	http.HandleFunc("/log/", logHandler)
@@ -152,6 +157,7 @@ func main() {
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(serverRootDir + "/assets"))))
 	http.HandleFunc("/reload/", reloadHandler)
 	http.Handle("/_hometicker", websocket.Handler(homeTickerHandler))
+	http.Handle("/_sensorticker", websocket.Handler(sensorTickerHandler))
 	http.HandleFunc("/view/", makeHandler(viewHandler, *validView))
 	http.HandleFunc("/", makeHandler(homeHandler, *validRoot))
 
