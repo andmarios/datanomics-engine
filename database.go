@@ -40,7 +40,10 @@ func (d DatabaseRRD) Add(s string) {
 	d.AddT(s, time.Now())
 }
 
+var mutexRRD = &sync.Mutex{}
+
 func (d DatabaseRRD) AddT(s string, t time.Time) {
+	mutexRRD.Lock()
 	dbfile := sensorDataDir + "/" + s
 	c := rrd.NewCreator(dbfile, t.Add(-time.Second), step)
 	c.DS("g", "GAUGE", heartbeat, 0, 60) // See what these numbers are!!!!
@@ -54,17 +57,20 @@ func (d DatabaseRRD) AddT(s string, t time.Time) {
 	}
 	d.Sensor[s] = s
 	d.Open[s] = rrd.NewUpdater(dbfile)
+	mutexRRD.Unlock()
 }
 
 func (d DatabaseRRD) Delete(s string) {
 	_, exists := d.Sensor[s]
 	if exists {
+		mutexRRD.Lock()
 		_, open := d.Open[s]
 		if open {
 			delete(d.Open, s)
 		}
 		// TODO: Delete FILE
 		delete(d.Sensor, s)
+		mutexRRD.Unlock()
 	}
 }
 
@@ -84,11 +90,15 @@ func (d DatabaseRRD) StoreT(s string, v string, t time.Time) {
 	dbfile := sensorDataDir + "/" + s
 	_, open := d.Open[s]
 	if ! open {
+		mutexRRD.Lock()
 		d.Open[s] = rrd.NewUpdater(dbfile)
+		mutexRRD.Unlock()
 	}
 	f, _ := strconv.ParseFloat(v, 0)
+	mutexRRD.Lock()
 	d.Open[s].Cache(t, f)
 	err := d.Open[s].Update() // TODO: Skip this step and run it periodically
+	mutexRRD.Unlock()
 	if err != nil {
 		log.Println(err)
 	}
@@ -165,7 +175,7 @@ func (d DatabaseRRD) Graph(s string) {
 
         now := time.Now()
 
-        _, err := g.SaveGraph(serverRootDir + "/assets/temp/" + s + ".png", now.Add(-600*time.Second), now)
+        _, err := g.SaveGraph(serverRootDir + "/assets/temp/" + s + ".png", now.Add(-3600*time.Second), now)
         if err != nil {
                 log.Println(err)
         }
