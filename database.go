@@ -46,7 +46,7 @@ func (d DatabaseRRD) AddT(s string, t time.Time) {
 	mutexRRD.Lock()
 	dbfile := sensorDataDir + "/" + s
 	c := rrd.NewCreator(dbfile, t.Add(-time.Second), step)
-	c.DS("g", "GAUGE", heartbeat, 0, 60) // See what these numbers are!!!!
+	c.DS("g", "GAUGE", heartbeat, 0, 1000) // See what these numbers are!!!!
 	c.RRA("AVERAGE", 0.5, 1, 720) // Hold 720 datapoints at fine resolution
 	c.RRA("AVERAGE", 0.5, 4, 720) // Hold 720 datapoints at resolution/4
 	c.RRA("AVERAGE", 0.5, 10, 8640)

@@ -130,7 +130,10 @@ const viewCustomScript = template.HTML(`    <!--[if lte IE 8]><script src="js/ex
             position: 'right'
         }],
         series: {
-            lines: { show: true },
+            lines: {
+                 show: true,
+                 fill: true
+            },
             points: { show: false }
         },
         legend: {
