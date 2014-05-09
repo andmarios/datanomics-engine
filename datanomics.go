@@ -21,7 +21,7 @@ import (
 	"github.com/ziutek/rrd"
 )
 
-var version = "Datanomics 742cc3a+"
+var version = "Datanomics db3df01+"
 
 var (
 	serverRootDir string

@@ -17,7 +17,7 @@ type Query interface {
 	List() []string
 	Store(string, string)
 	StoreT(string, string, time.Time)
-	Load(string) interface{}
+	Load(string) string
 	Exists(string) bool
 	Last(string) (string, time.Time)
 	Close()
@@ -104,14 +104,14 @@ func (d DatabaseRRD) StoreT(s string, v string, t time.Time) {
 	}
 }
 
-func (d DatabaseRRD) Load(s string) interface{} {
+func (d DatabaseRRD) Load(s string) string {
 	dbfile := sensorDataDir + "/" + s
 	inf, err := rrd.Info(dbfile)
         if err != nil {
                 log.Println(err)
         }
 	end := time.Unix(int64(inf["last_update"].(uint)), 0)
-	start := end.Add(-60 * 60 * 24 * time.Second)
+	start := end.Add(-60 * 60 * 6 * time.Second)
 	data, err := rrd.Fetch(dbfile, "AVERAGE", start, end, time.Duration(step) * time.Second)
 	defer data.FreeValues()
         if err != nil {
@@ -120,17 +120,16 @@ func (d DatabaseRRD) Load(s string) interface{} {
 
 	var buffer bytes.Buffer
         row := 0
-	buffer.WriteString("{")
+	buffer.WriteString("[")
         for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
-                buffer.WriteString(fmt.Sprintf("[\"%d\",", ti, ti.Unix()))
                 for i := 0; i < len(data.DsNames); i++ {
                         v := data.ValueAt(i, row)
-                        buffer.WriteString(fmt.Sprintf("\"\t%e\"", v))
+			buffer.WriteString(fmt.Sprintf("[%d000, %f],", ti.Unix(), v))
                 }
-			buffer.WriteString(fmt.Sprintf("],\n"))
                 row++
         }
-	buffer.WriteString("}")
+	buffer.Truncate(buffer.Len() - 1)
+	buffer.WriteString("]")
 
 	return buffer.String()
 }
