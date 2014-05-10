@@ -98,7 +98,7 @@ func (d DatabaseRRD) AddT(s string, t time.Time) {
 	d.Sensor[s] = s
 	d.Open[s] = rrd.NewUpdater(dbfile)
 	err = d.Open[s].Update()
-	d.Metadata[s] = sensorMetadata{s, "unknown", "raw", "", -1, -1}
+	d.Metadata[s] = sensorMetadata{s, "unknown", "raw", "", 35.5312752, 24.0676485}
         mutexRRD.Unlock()
         if err != nil {
                 log.Println(err)

@@ -36,7 +36,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		d.AddT(m[1], tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
 		sensorList()
 	}
-	// TODO: Fix it.
+	// We can't check this with rrd cache. We do it though on database flush.
 	// _, told := d.Last(m[1])
 	// if ! tnew.After(told) {
 	// 	http.Error(w, "Sensor send out of order timestamp", http.StatusNotFound)
@@ -47,7 +47,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 
 	d.StoreT(m[1], m[2], tnew)
 	t := d.Info(m[1]).Name
-	h.Pipe <- Hometicker{t +": new reading", "fa-plus-circle", "info",
+	h.Pipe <- Hometicker{"<a href='/view/" + m[1] + "'>" + t + "</a>: new reading", "fa-plus-circle", "info",
 		t + "</em> sent value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>"}
 	sh.Pipe <- m[1]
 	fmt.Fprintf(w, "ok")
