@@ -120,7 +120,6 @@ func (s *Socket) ReceiveSensorMessage() {
 				t := d.LoadMR(rec.Sensor, rec.Start, rec.End)
 				for i, _ := range t {
 					_ = websocket.JSON.Send(s.Ws, t[i])
-					log.Println(t[i])
 				}
 			}
 		}
