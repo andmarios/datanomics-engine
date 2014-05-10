@@ -18,6 +18,7 @@ type Query interface {
 	Store(string, string)
 	StoreT(string, string, time.Time)
 	LoadR(string) graphPoint
+	LoadMR(string, int64, int64) []rawGraphPoint
 	Load(string) string
 	Exists(string) bool
 	Last(string) (string, time.Time)
@@ -28,6 +29,13 @@ type Query interface {
 type graphPoint struct {
 	Time int64
 	Value float64
+}
+
+// This will be used as fast input for sensors' websocket.
+type rawGraphPoint struct {
+	C string
+	T int64
+	V float64
 }
 // RRD database implementation
 
@@ -127,10 +135,10 @@ func (d DatabaseRRD) Load(s string) string {
         row := 0
 	buffer.WriteString("[")
         for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
-                for i := 0; i < len(data.DsNames); i++ {
-                        v := data.ValueAt(i, row)
-			buffer.WriteString(fmt.Sprintf("[%d000, %f],", ti.Unix(), v))
-                }
+//                for i := 0; i < len(data.DsNames); i++ {
+		v := data.ValueAt(0, row)
+		buffer.WriteString(fmt.Sprintf("[%d000, %f],", ti.Unix(), v))
+  //              }
                 row++
         }
 	buffer.Truncate(buffer.Len() - 1)
@@ -153,23 +161,40 @@ func (d DatabaseRRD) LoadR(s string) graphPoint {
                 log.Println(err)
         }
 
-	//var buffer bytes.Buffer
 	var r graphPoint
         row := 0
-//	buffer.WriteString("[")
         for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
-//                for i := 0; i < len(data.DsNames); i++ {
-//			t := graphPoint{ti.Unix(), data.ValueAt(i, row)}
-//			r.Data = append(r.Data, t)
- //               }
                 row++
         }
 	r.Time = end.Unix()
 	r.Value = data.ValueAt(0, row -1)
-//	buffer.Truncate(buffer.Len() - 1)
-//	buffer.WriteString("]")
+	return r
+}
 
-//	return buffer.String()
+// Last value is last_update, so javascript can calculate max value and enable live updates.
+func (d DatabaseRRD) LoadMR(s string, st int64, en int64) []rawGraphPoint {
+	dbfile := sensorDataDir + "/" + s
+	inf, err := rrd.Info(dbfile)
+        if err != nil {
+                log.Println(err)
+        }
+	//end := time.Unix(int64(inf["last_update"].(uint)), 0)
+	//start := end.Add(-60 * 60 * 12 * time.Second)
+	end := time.Unix(en, 0)
+	start := time.Unix(st, 0)
+	data, err := rrd.Fetch(dbfile, "AVERAGE", start, end, time.Duration(step/2) * time.Second)
+	defer data.FreeValues()
+        if err != nil {
+                log.Println(err)
+        }
+
+	var r []rawGraphPoint
+        row := 0
+	for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
+		r = append(r, rawGraphPoint{"a", ti.Unix(), data.ValueAt(0, row)})
+                row++
+        }
+	r = append(r, rawGraphPoint{"g", int64(inf["last_update"].(uint)), 0})
 	return r
 }
 

@@ -118,6 +118,11 @@ const viewCustomScript = template.HTML(`    <!--[if lte IE 8]><script src="js/ex
     <script src="/assets/js/plugins/flot/jquery.flot.js"></script>
     <script src="/assets/js/plugins/flot/jquery.flot.tooltip.min.js"></script>
     <script src="/assets/js/plugins/flot/jquery.flot.resize.js"></script>
+    <script src="/assets/js/plugins/flot/jquery.flot.time.js"></script>
+    <link rel="stylesheet" id="themeCSS" href="/assets/js/plugins/jqrangeslider/css/classic-min.css">
+    <script src="/assets/js/jquery-ui-1.10.4.custom.min.js"></script>
+    <script src="/assets/js/plugins/jqrangeslider/lib/jquery.mousewheel.min.js"></script>
+    <script src="/assets/js/plugins/jqrangeslider/jQRangeSlider-min.js"></script>
     <script src="/assets/cjs/sensorticker.js"></script>
 `)
 

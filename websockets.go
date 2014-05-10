@@ -46,6 +46,12 @@ func (h *Hub) Broadcast() {
 	}
 }
 
+type sensorMsg struct {
+	C string
+	T int64
+	V float64
+}
+
 func (h *SensorHub) Broadcast() {
 	for {
 		select {
@@ -53,9 +59,13 @@ func (h *SensorHub) Broadcast() {
 			if d.Exists(str) {
 				_, exists := h.Connections[str]
 				if exists {
+					var m sensorMsg
 					v := d.LoadR(str)
+					m.C = "u"
+					m.T = v.Time
+					m.V = v.Value
 					for s, _ := range h.Connections[str] {
-						err := websocket.JSON.Send(s.Ws, v)
+						err := websocket.JSON.Send(s.Ws, m)
 						if err != nil {
 							s.Ws.Close()
 							delete(h.Connections[str], s)
@@ -85,13 +95,35 @@ func (s *Socket) ReceiveMessage() {
 	s.Ws.Close()
 }
 
+type incomingMsg struct {
+	Type string
+	Sensor string
+	Start int64
+	End int64
+}
+
 func (s *Socket) ReceiveSensorMessage() {
 	for {
-		var x string
-                err := websocket.Message.Receive(s.Ws, &x)
+//		var x []byte
+		var rec incomingMsg
+                err := websocket.JSON.Receive(s.Ws, &rec)
                 if err != nil {
                         break
                 }
+		if rec.Type == "range" {
+			m := sensorMsg{"d", 0, 0}
+			err := websocket.JSON.Send(s.Ws, m)
+			if err != nil {
+				s.Ws.Close()
+			}
+			if d.Exists(rec.Sensor) {
+				t := d.LoadMR(rec.Sensor, rec.Start, rec.End)
+				for i, _ := range t {
+					_ = websocket.JSON.Send(s.Ws, t[i])
+					log.Println(t[i])
+				}
+			}
+		}
         }
         s.Ws.Close()
 }
