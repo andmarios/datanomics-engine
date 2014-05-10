@@ -177,14 +177,11 @@ func (d DatabaseRRD) LoadR(s string) graphPoint {
                 log.Println(err)
         }
 
-	var r graphPoint
         row := 0
         for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
                 row++
         }
-	r.Time = end.Unix()
-	r.Value = data.ValueAt(0, row -1)
-	return r
+	return graphPoint{end.Unix(), data.ValueAt(0, row - 1)}
 }
 
 // Last value is last_update, so javascript can calculate max value and enable live updates.
