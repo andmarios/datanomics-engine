@@ -38,6 +38,8 @@ var (
 	sh SensorHub
 )
 
+var flushPeriod = 300 // seconds
+
 func init() {
 	flag.StringVar(&serverRootDir, "root", "current directory", "webroot directory")
 	flag.StringVar(&serverRootDir, "d", "current directory", "webroot directory" + " (shorthand)")
@@ -139,6 +141,8 @@ func main() {
 	}
 
 	d = &t
+	go d.FlushDatabases()
+
 	sensorList()
 	loadTemplates()
 
@@ -194,3 +198,8 @@ func logRequest(r *http.Request) {
 		r.URL.RequestURI(),
 		r.Proto)
 }
+
+
+
+
+

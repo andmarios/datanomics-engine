@@ -24,6 +24,7 @@ type Query interface {
 	Last(string) (string, time.Time)
 	Close()
 	Graph(string)
+	FlushDatabases()
 }
 
 type graphPoint struct {
@@ -54,6 +55,19 @@ func (d DatabaseRRD) Add(s string) {
 }
 
 var mutexRRD = &sync.Mutex{}
+
+func (d DatabaseRRD) helperCheckFlushBeforeRead(s string) bool {
+	_, exists := d.Sensor[s]
+	if exists {
+		_, opened := d.Open[s]
+		if opened {
+			d.FlushDatabase(s)
+		}
+	} else {
+		return false
+	}
+	return true
+}
 
 func (d DatabaseRRD) AddT(s string, t time.Time) {
 	mutexRRD.Lock()
@@ -100,9 +114,9 @@ func (d DatabaseRRD) Store(s string, v string) {
 }
 
 func (d DatabaseRRD) StoreT(s string, v string, t time.Time) {
-	dbfile := sensorDataDir + "/" + s
 	_, open := d.Open[s]
 	if ! open {
+		dbfile := sensorDataDir + "/" + s
 		mutexRRD.Lock()
 		d.Open[s] = rrd.NewUpdater(dbfile)
 		mutexRRD.Unlock()
@@ -110,14 +124,13 @@ func (d DatabaseRRD) StoreT(s string, v string, t time.Time) {
 	f, _ := strconv.ParseFloat(v, 0)
 	mutexRRD.Lock()
 	d.Open[s].Cache(t, f)
-	err := d.Open[s].Update() // TODO: Skip this step and run it periodically
 	mutexRRD.Unlock()
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 func (d DatabaseRRD) Load(s string) string {
+	if ! d.helperCheckFlushBeforeRead(s) {
+		return "oops"
+	}
 	dbfile := sensorDataDir + "/" + s
 	inf, err := rrd.Info(dbfile)
         if err != nil {
@@ -148,6 +161,9 @@ func (d DatabaseRRD) Load(s string) string {
 }
 
 func (d DatabaseRRD) LoadR(s string) graphPoint {
+	if ! d.helperCheckFlushBeforeRead(s) {
+		return graphPoint{0, 0}
+	}
 	dbfile := sensorDataDir + "/" + s
 	inf, err := rrd.Info(dbfile)
         if err != nil {
@@ -173,6 +189,9 @@ func (d DatabaseRRD) LoadR(s string) graphPoint {
 
 // Last value is last_update, so javascript can calculate max value and enable live updates.
 func (d DatabaseRRD) LoadMR(s string, st int64, en int64) []rawGraphPoint {
+	if ! d.helperCheckFlushBeforeRead(s) {
+		return []rawGraphPoint{{"d", 0, 0}}
+	}
 	dbfile := sensorDataDir + "/" + s
 	inf, err := rrd.Info(dbfile)
         if err != nil {
@@ -218,7 +237,7 @@ func (d DatabaseRRD) Last(s string) (v string, t time.Time) {
 
 func (d DatabaseRRD) Close() {
 	for s, _ := range d.Open {
-		d.Open[s].Update()
+		d.FlushDatabase(s)
 		delete(d.Open, s)
 	}
 }
@@ -242,6 +261,33 @@ func (d DatabaseRRD) Graph(s string) {
         if err != nil {
                 log.Println(err)
         }
+}
+
+func (d DatabaseRRD) FlushDatabases() {
+        ticker := time.NewTicker(time.Duration(flushPeriod) * time.Second)
+        quit := make(chan struct{})
+        go func() {
+                for {
+                        select {
+                        case <- ticker.C:
+                                for s, _ := range d.Open {
+                                        d.FlushDatabase(s)
+                                }
+                        case <- quit:
+                                ticker.Stop()
+                                return
+                        }
+                }
+        }()
+}
+
+func (d DatabaseRRD) FlushDatabase(s string) {
+	mutexRRD.Lock()
+	err := d.Open[s].Update() // TODO: Skip this step and run it periodically
+	mutexRRD.Unlock()
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 // Old database implementation, in memory
