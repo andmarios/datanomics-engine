@@ -84,7 +84,11 @@ func (d DatabaseRRD) AddT(s string, t time.Time) {
 	}
 	d.Sensor[s] = s
 	d.Open[s] = rrd.NewUpdater(dbfile)
-	mutexRRD.Unlock()
+	err = d.Open[s].Update() // TODO: Skip this step and run it periodically
+        mutexRRD.Unlock()
+        if err != nil {
+                log.Println(err)
+        }
 }
 
 func (d DatabaseRRD) Delete(s string) {
