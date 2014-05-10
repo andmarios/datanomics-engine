@@ -1,16 +1,13 @@
 package main
 
 import (
-//	"net"
 	"net/http"
 	"log"
 	"flag"
 	"os"
 	"path/filepath"
 	"regexp"
-//	"reflect"
 	"time"
-//	"strings"
 	"html/template"
 	"encoding/json"
 	"runtime/pprof"
@@ -21,7 +18,7 @@ import (
 	"github.com/ziutek/rrd"
 )
 
-var version = "Datanomics da4fed9+"
+var version = "Datanomics 2c02ec7+"
 
 var (
 	serverRootDir string
@@ -68,6 +65,7 @@ func debugln(v ...interface{}) {
 
 var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/(-?[0-9]+[.]{0,1}[0-9]*)(/([ts])/([0-9]+))?/?$")
 var validQuery = regexp.MustCompile("^/q/([a-zA-Z0-9-]+)/?$")
+var validInfoQuery = regexp.MustCompile("^/iq/([a-zA-Z0-9-]+)/?$")
 var validRoot = regexp.MustCompile("^/$")
 var validView = regexp.MustCompile("^/view/([a-zA-Z0-9-]+)/?$")
 
@@ -130,7 +128,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 	// t := Database{ make(map[string] sensorlog) }
-	t := DatabaseRRD{make(map[string]string), make(map[string]*rrd.Updater)}
+	t := DatabaseRRD{make(map[string]string), make(map[string]*rrd.Updater), make(map[string]sensorMetadata)}
 	file, err := ioutil.ReadFile(database)
 	if err != nil {
 		log.Println("Using new database.")
@@ -158,6 +156,7 @@ func main() {
 
 	http.HandleFunc("/log/", logHandler)
 	http.HandleFunc("/q/", makeHandler(queryHandler, *validQuery))
+	http.HandleFunc("/iq/", makeHandler(queryInfoHandler, *validInfoQuery))
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(serverRootDir + "/assets"))))
 	http.HandleFunc("/reload/", reloadHandler)
 	http.Handle("/_hometicker", websocket.Handler(homeTickerHandler))
@@ -198,8 +197,3 @@ func logRequest(r *http.Request) {
 		r.URL.RequestURI(),
 		r.Proto)
 }
-
-
-
-
-

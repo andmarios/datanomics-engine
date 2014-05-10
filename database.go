@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"bytes"
 	"fmt"
+        "encoding/json"
+        "io/ioutil"
 	"github.com/ziutek/rrd"
 )
 
@@ -25,6 +27,7 @@ type Query interface {
 	Close()
 	Graph(string)
 	FlushDatabases()
+	Info(string) sensorMetadata
 }
 
 type graphPoint struct {
@@ -48,10 +51,16 @@ var (
 type DatabaseRRD struct {
 	Sensor map[string]string
 	Open map[string]*rrd.Updater
+	Metadata map[string]sensorMetadata
 }
 
-func (d DatabaseRRD) Add(s string) {
-	d.AddT(s, time.Now())
+type sensorMetadata struct {
+	Name string
+	Owner string
+	Unit string
+	Info string
+	Lat  float64
+	Lon  float64
 }
 
 var mutexRRD = &sync.Mutex{}
@@ -69,6 +78,10 @@ func (d DatabaseRRD) helperCheckFlushBeforeRead(s string) bool {
 	return true
 }
 
+func (d DatabaseRRD) Add(s string) {
+	d.AddT(s, time.Now())
+}
+
 func (d DatabaseRRD) AddT(s string, t time.Time) {
 	mutexRRD.Lock()
 	dbfile := sensorDataDir + "/" + s
@@ -84,7 +97,8 @@ func (d DatabaseRRD) AddT(s string, t time.Time) {
 	}
 	d.Sensor[s] = s
 	d.Open[s] = rrd.NewUpdater(dbfile)
-	err = d.Open[s].Update() // TODO: Skip this step and run it periodically
+	err = d.Open[s].Update()
+	d.Metadata[s] = sensorMetadata{s, "unknown", "raw", "", -1, -1}
         mutexRRD.Unlock()
         if err != nil {
                 log.Println(err)
@@ -101,6 +115,7 @@ func (d DatabaseRRD) Delete(s string) {
 		}
 		// TODO: Delete FILE
 		delete(d.Sensor, s)
+		delete(d.Metadata, s)
 		mutexRRD.Unlock()
 	}
 }
@@ -129,6 +144,13 @@ func (d DatabaseRRD) StoreT(s string, v string, t time.Time) {
 	mutexRRD.Lock()
 	d.Open[s].Cache(t, f)
 	mutexRRD.Unlock()
+	//------------------------------------------
+	//DATABASE MIGRATION, REMOVE AFTER MIGRATION
+	_, exists := d.Metadata[s]
+	if ! exists {
+		d.Metadata[s] = sensorMetadata{s, "unknown", "raw", "", -1, -1}
+	}
+	//------------------------------------------
 }
 
 func (d DatabaseRRD) Load(s string) string {
@@ -152,10 +174,10 @@ func (d DatabaseRRD) Load(s string) string {
         row := 0
 	buffer.WriteString("[")
         for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
-//                for i := 0; i < len(data.DsNames); i++ {
+		//                for i := 0; i < len(data.DsNames); i++ {
 		v := data.ValueAt(0, row)
 		buffer.WriteString(fmt.Sprintf("[%d000, %f],", ti.Unix(), v))
-  //              }
+		//              }
                 row++
         }
 	buffer.Truncate(buffer.Len() - 1)
@@ -236,6 +258,10 @@ func (d DatabaseRRD) Last(s string) (v string, t time.Time) {
 	return "unknown", time.Now() // TODO: return last value
 }
 
+func (d DatabaseRRD) Info(s string) sensorMetadata {
+	return d.Metadata[s]
+}
+
 func (d DatabaseRRD) Close() {
 	for s, _ := range d.Open {
 		d.FlushDatabase(s)
@@ -273,6 +299,11 @@ func (d DatabaseRRD) FlushDatabases() {
                         case <- ticker.C:
                                 for s, _ := range d.Open {
                                         d.FlushDatabase(s)
+					dbs, _ := json.Marshal(d)
+					err := ioutil.WriteFile(database, dbs, 0600)
+					if err != nil {
+						log.Println("Error saving database info.")
+					}
                                 }
                         case <- quit:
                                 ticker.Stop()
@@ -284,10 +315,12 @@ func (d DatabaseRRD) FlushDatabases() {
 
 func (d DatabaseRRD) FlushDatabase(s string) {
 	mutexRRD.Lock()
-	err := d.Open[s].Update() // TODO: Skip this step and run it periodically
+	err := d.Open[s].Update()
 	mutexRRD.Unlock()
 	if err != nil {
 		log.Println(err)
+		h.Pipe <- Hometicker{d.Metadata[s].Name + ": out of order reading", "fa-times-circle", "danger",
+			d.Metadata[s].Name + "</em> sent some out of order values in the last " + strconv.FormatInt(int64(flushPeriod), 10) + " seconds. Ignoring."}
 	}
 }
 
@@ -367,18 +400,3 @@ func (d Database) Close() {
 
 func (d Database) Graph(){
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

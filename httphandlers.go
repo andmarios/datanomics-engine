@@ -46,8 +46,9 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	d.StoreT(m[1], m[2], tnew)
-	h.Pipe <- Hometicker{m[1] +": new reading", "fa-plus-circle", "info",
-		m[1] + "</em> sent value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>"}
+	t := d.Info(m[1]).Name
+	h.Pipe <- Hometicker{t +": new reading", "fa-plus-circle", "info",
+		t + "</em> sent value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>"}
 	sh.Pipe <- m[1]
 	fmt.Fprintf(w, "ok")
 }
@@ -82,7 +83,7 @@ func sensorList() { // When we add/remove sensors manually, make this run once a
 	for _, s := range d.List() {
 		buffer.WriteString(`
                  <li>
-                   <a href="/view/` + s + `">` + s + `</a>
+                   <a href="/view/` + s + `">` + d.Info(s).Name + `</a>
                  </li>`)
 	}
 	SensorList = template.HTML(buffer.String())
@@ -140,26 +141,27 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 		//a, _ := json.Marshal(d.Load(m[1]))
 		s := d.Load(m[1])
 		s += "; var sensorID = '" + m[1] + "';"
+		n := d.Info(m[1]).Name
 		err := templates.ExecuteTemplate(w,
                         "sensor.html",
-                        ViewPage{"Datanomics alpha | " + m[1], m[1], template.JS(s), SensorList, viewCustomScript})
+                        ViewPage{"Datanomics alpha | " + n, n, template.JS(s), SensorList, viewCustomScript})
                 if err != nil {
                         http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+func queryInfoHandler(w http.ResponseWriter, r *http.Request) {
+	m := validInfoQuery.FindStringSubmatch(r.URL.Path)
+        if len(m) == 0 {
+                http.Error(w, "Sensor not found", http.StatusNotFound)
+                return
+        }
+	if ! d.Exists(m[1]) {
+		http.Error(w, "Sensor not found", http.StatusNotFound)
+                return
+        }
+	debugln("Query for sensor " + m[1])
+	a, _ := json.Marshal(d.Info(m[1]))
+	fmt.Fprintf(w, string(a))
+}
