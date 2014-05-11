@@ -28,6 +28,8 @@ type Query interface {
 	Graph(string)
 	FlushDatabases()
 	Info(string) sensorMetadata
+	Count() int
+	OpenCount() int
 }
 
 type graphPoint struct {
@@ -261,6 +263,15 @@ func (d DatabaseRRD) Last(s string) (v string, t time.Time) {
 func (d DatabaseRRD) Info(s string) sensorMetadata {
 	return d.Metadata[s]
 }
+
+func (d DatabaseRRD) Count() int {
+	return len(d.Sensor)
+}
+
+func (d DatabaseRRD) OpenCount() int {
+	return len(d.Open)
+}
+
 
 func (d DatabaseRRD) Close() {
 	for s, _ := range d.Open {

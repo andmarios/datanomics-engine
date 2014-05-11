@@ -14,9 +14,11 @@ type remoteReading struct {
 }
 
 func listenForRemoteReadings() {
-	ln, err := net.Listen("tcp", ":" + scPort);
+	ln, err := net.Listen("tcp", address + ":" + scPort);
 	if err != nil {
 		log.Println("Could not start remote readings listener.")
+		log.Println(err)
+		return
 	}
 	for {
 		conn, err := ln.Accept()

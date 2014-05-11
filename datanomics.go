@@ -18,7 +18,7 @@ import (
 	"github.com/ziutek/rrd"
 )
 
-var version = "Datanomics e024dff+"
+var version = "Datanomics ff64350+"
 
 var (
 	serverRootDir string
@@ -88,6 +88,7 @@ var validQuery = regexp.MustCompile("^/q/([a-zA-Z0-9-]+)/?$")
 var validInfoQuery = regexp.MustCompile("^/iq/([a-zA-Z0-9-]+)/?$")
 var validRoot = regexp.MustCompile("^/$")
 var validView = regexp.MustCompile("^/view/([a-zA-Z0-9-]+)/?$")
+var validStats = regexp.MustCompile("^/_stats/?$")
 
 func makeHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regexp) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -219,6 +220,7 @@ func main() {
 	http.HandleFunc("/reload/", reloadHandler)
 	http.Handle("/_hometicker", websocket.Handler(homeTickerHandler))
 	http.Handle("/_sensorticker", websocket.Handler(sensorTickerHandler))
+	http.HandleFunc("/_stats/", makeHandler(statsHandler, *validStats))
 	http.HandleFunc("/view/", makeHandler(viewHandler, *validView))
 	http.HandleFunc("/", makeHandler(homeHandler, *validRoot))
 

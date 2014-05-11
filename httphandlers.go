@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"encoding/json"
 	"bytes"
+	"os"
 )
 
 var templates *template.Template
@@ -165,5 +166,36 @@ func queryInfoHandler(w http.ResponseWriter, r *http.Request) {
         }
 	debugln("Query for sensor " + m[1])
 	a, _ := json.Marshal(d.Info(m[1]))
+	fmt.Fprintf(w, string(a))
+}
+
+type ServerStats struct {
+	Sensors int
+	OpenSensors int
+	RemoteServers []string
+	WebsocketClientsHome int
+	WebsocketClientsSensors int
+	DatabaseSize int64
+}
+
+func statsHandler(w http.ResponseWriter, r *http.Request) {
+	var wsch = 0
+	for i := range h.Connections {
+		if h.Connections[i] == true {
+			wsch++
+		}
+	}
+	var wscc = 0
+	for i := range sh.Connections {
+		wscc += len(sh.Connections[i])
+	}
+	dbdir, _ := os.Open(sensorDataDir)
+	dbfiles, _ := dbdir.Readdir(-1)
+	var ds int64
+	for _, i := range dbfiles {
+		ds += i.Size()
+	}
+	t := ServerStats{d.Count(), d.OpenCount(), remoteServers, wsch, wscc, ds}
+	a, _ := json.Marshal(t)
 	fmt.Fprintf(w, string(a))
 }
