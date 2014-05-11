@@ -18,7 +18,7 @@ import (
 	"github.com/ziutek/rrd"
 )
 
-var version = "Datanomics ff64350+"
+var version = "Datanomics 2097f2f+"
 
 var (
 	serverRootDir string
@@ -94,6 +94,19 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regex
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := rexp.FindStringSubmatch(r.URL.Path)
 		logRequest(r)
+		w.Header().Add("Server", version)
+		w.Header().Add("Vary", "Accept-Encoding")
+		if m == nil {
+			http.NotFound(w, r)
+			return
+		}
+		fn(w, r)
+	}
+}
+
+func makeNoLogHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regexp) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		m := rexp.FindStringSubmatch(r.URL.Path)
 		w.Header().Add("Server", version)
 		w.Header().Add("Vary", "Accept-Encoding")
 		if m == nil {
@@ -220,7 +233,7 @@ func main() {
 	http.HandleFunc("/reload/", reloadHandler)
 	http.Handle("/_hometicker", websocket.Handler(homeTickerHandler))
 	http.Handle("/_sensorticker", websocket.Handler(sensorTickerHandler))
-	http.HandleFunc("/_stats/", makeHandler(statsHandler, *validStats))
+	http.HandleFunc("/_stats/", makeNoLogHandler(statsHandler, *validStats))
 	http.HandleFunc("/view/", makeHandler(viewHandler, *validView))
 	http.HandleFunc("/", makeHandler(homeHandler, *validRoot))
 
