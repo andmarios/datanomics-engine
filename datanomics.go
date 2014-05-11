@@ -27,15 +27,33 @@ var (
 	verbose bool
 	database string
 	sensorDataDir string
+	configFile string
+	scPort string
+	remoteServers []string
 )
+
+type configVars struct {
+	ServerRootDir string
+	Port string
+	Address string
+	Verbose bool
+	Database string
+	SensorDataDir string
+	ScPort string
+	RemoteServers []string
+	FlushPeriod int
+	SendRemotePeriod int
+}
 
 var (
 	d Query
 	h Hub
 	sh SensorHub
+	srC SendReadingsCache
 )
 
 var flushPeriod = 300 // seconds
+var sendRemotePeriod = 10 // seconds
 
 func init() {
 	flag.StringVar(&serverRootDir, "root", "current directory", "webroot directory")
@@ -49,6 +67,8 @@ func init() {
 	flag.StringVar(&database, "database", "db.json", "database file")
 	flag.StringVar(&sensorDataDir, "storage", "sensors", "directory to store sensor data")
 	flag.StringVar(&sensorDataDir, "s", "sensors", "directory to store sensor data" + " (shorthand)")
+	flag.StringVar(&configFile, "config", "", "configuration file")
+	flag.StringVar(&scPort, "scport", "12127", "port to listen for remote readings")
 }
 
 func debug(s string) {
@@ -127,6 +147,38 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
+
+	if configFile != "" {
+		var confR configVars
+		file, err := ioutil.ReadFile(configFile)
+		if err != nil {
+			log.Println("Creating new configuration file.")
+		} else if err = json.Unmarshal(file, &confR); err != nil {
+			log.Println("Couldn't parse configuration file. Ignoring.", err)
+		} else {
+			serverRootDir = confR.ServerRootDir
+			port = confR.Port
+			address = confR.Address
+			verbose = confR.Verbose
+			database = confR.Database
+			sensorDataDir = confR.SensorDataDir
+			scPort = confR.ScPort
+			remoteServers = confR.RemoteServers
+			flushPeriod = confR.FlushPeriod
+			sendRemotePeriod = confR.SendRemotePeriod
+			log.Println("Loaded configuration. Command line options will be ignored.")
+		}
+
+		confR = configVars{serverRootDir, port, address, verbose, database, sensorDataDir, scPort, remoteServers, flushPeriod, sendRemotePeriod}
+		confJ, _ := json.Marshal(confR)
+		err = ioutil.WriteFile(configFile, confJ, 0600)
+		if err != nil {
+			log.Println("Error saving config info.")
+		} else {
+			log.Println("Saved config file.")
+		}
+	}
+
 	// t := Database{ make(map[string] sensorlog) }
 	t := DatabaseRRD{make(map[string]string), make(map[string]*rrd.Updater), make(map[string]sensorMetadata)}
 	file, err := ioutil.ReadFile(database)
@@ -151,6 +203,12 @@ func main() {
 	sh.Connections = make(map[string]map[*Socket]bool)
 	sh.Pipe = make(chan string)
 	go sh.Broadcast()
+
+	srC.Readings = make([]remoteReading, 0, 10)
+	srC.Pipe = make(chan remoteReading)
+	go srC.SendReadingsCron()
+
+	go listenForRemoteReadings()
 
 	go cleanup()
 

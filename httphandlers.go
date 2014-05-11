@@ -30,6 +30,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 			tnew = time.Unix(time.Now().Unix() - t, 0)
 		}
 	}
+	// From down here there is a bit of duplication with sendRemoteReading(). Remember to change both if needed.
 	if ! d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
 		h.Pipe <- Hometicker{"New sensor: " + m[1], "fa-check-circle", "success",
 			"Sensor <em>" + m[1] + "</em> succesfully added."}
@@ -46,6 +47,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	d.StoreT(m[1], m[2], tnew)
+	srC.Pipe <- remoteReading{m[1], m[2], tnew}
 	t := d.Info(m[1]).Name
 	h.Pipe <- Hometicker{"<a href='/view/" + m[1] + "'>" + t + "</a>: new reading", "fa-plus-circle", "info",
 		t + "</em> sent value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>"}

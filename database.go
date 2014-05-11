@@ -299,12 +299,13 @@ func (d DatabaseRRD) FlushDatabases() {
                         case <- ticker.C:
                                 for s, _ := range d.Open {
                                         d.FlushDatabase(s)
-					dbs, _ := json.Marshal(d)
-					err := ioutil.WriteFile(database, dbs, 0600)
-					if err != nil {
-						log.Println("Error saving database info.")
-					}
                                 }
+				dbs, _ := json.Marshal(d)
+				err := ioutil.WriteFile(database, dbs, 0600)
+				if err != nil {
+					log.Println("Error saving database info.")
+				}
+
                         case <- quit:
                                 ticker.Stop()
                                 return
