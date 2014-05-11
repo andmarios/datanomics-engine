@@ -10,6 +10,7 @@ import (
         "encoding/json"
         "io/ioutil"
 	"github.com/ziutek/rrd"
+	"math"
 )
 
 type Query interface {
@@ -41,7 +42,7 @@ type graphPoint struct {
 type rawGraphPoint struct {
 	C string
 	T int64
-	V float64
+	V interface{}
 }
 // RRD database implementation
 
@@ -235,7 +236,14 @@ func (d DatabaseRRD) LoadMR(s string, st int64, en int64) []rawGraphPoint {
 	var r []rawGraphPoint
         row := 0
 	for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
-		r = append(r, rawGraphPoint{"a", ti.Unix(), data.ValueAt(0, row)})
+		v := data.ValueAt(0, row)
+		if math.IsNaN(v) {
+			if ti.After(time.Now().Add(-24 * 36 * time.Hour)) {
+				r = append(r, rawGraphPoint{"a", ti.Unix(), nil})
+			}
+		} else {
+			r = append(r, rawGraphPoint{"a", ti.Unix(), v})
+		}
                 row++
         }
 	r = append(r, rawGraphPoint{"g", int64(inf["last_update"].(uint)), 0})
