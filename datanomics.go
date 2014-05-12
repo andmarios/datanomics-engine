@@ -18,7 +18,7 @@ import (
 	"github.com/ziutek/rrd"
 )
 
-var version = "Datanomics 2097f2f+"
+var version = "Datanomics 8407169+"
 
 var (
 	serverRootDir string
@@ -208,6 +208,7 @@ func main() {
 	go d.FlushDatabases()
 
 	sensorList()
+	latlonList()
 	loadTemplates()
 
 	h.Connections = make(map[*Socket]bool)

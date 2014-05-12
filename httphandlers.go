@@ -37,6 +37,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 			"Sensor <em>" + m[1] + "</em> succesfully added."}
 		d.AddT(m[1], tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
 		sensorList()
+		latlonList()
 	}
 	// We can't check this with rrd cache. We do it though on database flush.
 	// _, told := d.Last(m[1])
@@ -96,18 +97,48 @@ type HomePage struct {
 	Title string
 	SensorList template.HTML
 	CustomScript template.HTML
+	LatLonList template.JS
 }
 
-const homeCustomScript = template.HTML(`<script src="/assets/cjs/hometicker.js"></script>`)
+const homeCustomScript = template.HTML(`
+     <script src="/assets/cjs/hometicker.js"></script>
+     <script src="http://maps.google.com/maps/api/js?sensor=false&libraries=geometry&v=3.7"></script>
+     <script src="/assets/js/maplace.min.js"></script>
+      <script>
+       $(function() {
+         new Maplace({
+           locations: Locs,
+           map_div: '#gmap',
+           controls_type: 'dropdown',
+           controls_on_map: false,
+           controls_cssclass: "btn-default"
+         }).Load();
+       });
+      </script>
+`)
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	err := templates.ExecuteTemplate(w,
 		"home.html",
-		HomePage{"Datanomics alpha", SensorList, homeCustomScript})
+		HomePage{"Datanomics alpha", SensorList, homeCustomScript, LatLonList})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Println(err)
 	}
+}
+
+var LatLonList template.JS
+
+func latlonList() {
+	var buffer bytes.Buffer
+	buffer.WriteString("var Locs = [")
+	for _, s := range d.List() {
+		v := d.Info(s)
+		buffer.WriteString("{lat:"+ strconv.FormatFloat(v.Lat, 'f', -1, 64) + ", lon:" + strconv.FormatFloat(v.Lon, 'f', 1, 64) + ", title:'" + v.Name + "'},")
+	}
+	buffer.Truncate(buffer.Len() - 1)
+	buffer.WriteString("];")
+	LatLonList = template.JS(buffer.String())
 }
 
 type ViewPage struct {
@@ -199,3 +230,15 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 	a, _ := json.Marshal(t)
 	fmt.Fprintf(w, string(a))
 }
+
+
+
+
+
+
+
+
+
+
+
+
