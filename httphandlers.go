@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"bytes"
 	"os"
+	"github.com/bradrydzewski/go.auth"
 )
 
 var templates *template.Template
@@ -231,9 +232,10 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(a))
 }
 
-
-
-
+func logOutHandler(w http.ResponseWriter, r *http.Request) {
+	auth.DeleteUserCookie(w, r)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
 
 
 
