@@ -139,7 +139,7 @@ func userMenu(u auth.User) template.HTML {
 func homeHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 	err := templates.ExecuteTemplate(w,
 		"home.html",
-		HomePage{"Datanomics alpha", userMenu(u), SensorList, homeCustomScript, LatLonList})
+		HomePage{"Datanomics™ alpha", userMenu(u), SensorList, homeCustomScript, LatLonList})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Println(err)
@@ -186,7 +186,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
         if ! d.Exists(m[1]) {
 		err := templates.ExecuteTemplate(w,
 			"sensor.html",
-			ViewPage{"Datanomics alpha | Sensor not found", userMenu(u), "Error", "Sensor not found", SensorList, viewCustomScript})
+			ViewPage{"Datanomics™ alpha | Sensor not found", userMenu(u), "Error", "Sensor not found", SensorList, viewCustomScript})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -198,7 +198,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 		n := d.Info(m[1]).Name
 		err := templates.ExecuteTemplate(w,
                         "sensor.html",
-                        ViewPage{"Datanomics alpha | " + n, userMenu(u), n, template.JS(s), SensorList, viewCustomScript})
+                        ViewPage{"Datanomics™ alpha | " + n, userMenu(u), n, template.JS(s), SensorList, viewCustomScript})
                 if err != nil {
                         http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

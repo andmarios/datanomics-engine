@@ -19,7 +19,7 @@ import (
 	"github.com/bradrydzewski/go.auth"
 )
 
-var version = "Datanomics 8407169+"
+var version = "Datanomics ac41a8f+"
 
 var (
 	serverRootDir string
@@ -34,6 +34,8 @@ var (
 	googleAccessKey string
 	googleSecretKey string
 	googleRedirect string
+	githubAccessKey string
+	githubSecretKey string
 )
 
 type configVars struct {
@@ -50,6 +52,8 @@ type configVars struct {
 	GoogleAccessKey string
 	GoogleSecretKey string
 	GoogleRedirect string
+	GithubAccessKey string
+	GithubSecretKey string
 }
 
 var (
@@ -78,9 +82,11 @@ func init() {
 	flag.StringVar(&scPort, "scport", "12127", "port to listen for remote readings")
 
 	// For pacakage auth
-	flag.StringVar(&googleAccessKey, "gcid", "[client id]", "your google client ID")
-	flag.StringVar(&googleSecretKey, "gcs", "[secret]", "your google client secret")
-	flag.StringVar(&googleRedirect, "gcb", "http://localhost:8080/oauth2callback", "your google redirect URI")
+	flag.StringVar(&googleAccessKey, "googlecid", "[client id]", "your google client ID")
+	flag.StringVar(&googleSecretKey, "googlecs", "[secret]", "your google client secret")
+	flag.StringVar(&googleRedirect, "googlecb", "http://localhost:8080/oauth2callback", "your google redirect URI")
+	flag.StringVar(&githubAccessKey, "githubcid", "[client id]", "your github client ID")
+	flag.StringVar(&githubSecretKey, "githubcs", "[secret]", "your github client secret")
 }
 
 func debug(s string) {
@@ -211,11 +217,14 @@ func main() {
 			googleAccessKey = confR.GoogleAccessKey
 			googleSecretKey = confR.GoogleSecretKey
 			googleRedirect = confR.GoogleRedirect
+			githubAccessKey = confR.GithubAccessKey
+			githubSecretKey = confR.GithubSecretKey
 			log.Println("Loaded configuration. Command line options will be ignored.")
 		}
 
 		confR = configVars{serverRootDir, port, address, verbose, database, sensorDataDir, scPort,
-			remoteServers, flushPeriod, sendRemotePeriod, googleAccessKey, googleSecretKey, googleRedirect}
+			remoteServers, flushPeriod, sendRemotePeriod, googleAccessKey, googleSecretKey,
+			googleRedirect, githubAccessKey, githubSecretKey}
 		confJ, _ := json.Marshal(confR)
 		err = ioutil.WriteFile(configFile, confJ, 0600)
 		if err != nil {
@@ -264,8 +273,12 @@ func main() {
 	auth.Config.CookieSecure = false
 	auth.Config.LoginRedirect = "/login/"
 
-	googHandler := auth.Google(googleAccessKey, googleSecretKey, googleRedirect)
-	http.Handle("/login/google", googHandler)
+	googleHandler := auth.Google(googleAccessKey, googleSecretKey, googleRedirect)
+	http.Handle("/login/google", googleHandler)
+
+	// "" is for scope (which user data we need)
+	githubHandler := auth.Github(githubAccessKey, githubSecretKey, "")
+	http.Handle("/login/github", githubHandler)
 
 	http.HandleFunc("/log/", logHandler)
 	http.HandleFunc("/q/", makeHandler(queryHandler, *validQuery))
