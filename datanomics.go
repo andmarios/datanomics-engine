@@ -244,11 +244,12 @@ func main() {
 
 	googleAccessKey := flag.String("access_key", "abcdefghijklmnopqrstuvwxyz", "your oauth access key")
 	googleSecretKey := flag.String("secret_key", "abcdefghijklmnopqrstuvwxyz", "your oauth secret key")
-	googleRedirect := "http://datanomics.andmarios.com/oauth2callback"
+	googleRedirect := "http://localhost:8080/oauth2callback"
 
 	auth.Config.CookieSecret = []byte("82f6e00c-9053-4305-8662-aa163daca490")
 	auth.Config.LoginSuccessRedirect = "/"
 	auth.Config.CookieSecure = false
+	auth.Config.LoginRedirect = "/oauth2callback"
 
 	googHandler := auth.Google(*googleAccessKey, *googleSecretKey, googleRedirect)
 	http.Handle("/oauth2callback", googHandler)
