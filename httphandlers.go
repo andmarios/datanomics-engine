@@ -153,7 +153,7 @@ func latlonList() {
 	buffer.WriteString("var Locs = [")
 	for _, s := range d.List() {
 		v := d.Info(s)
-		buffer.WriteString("{lat:"+ strconv.FormatFloat(v.Lat, 'f', -1, 64) + ", lon:" + strconv.FormatFloat(v.Lon, 'f', 1, 64) + ", title:'" + v.Name + "'},")
+		buffer.WriteString("{lat:"+ strconv.FormatFloat(v.Lat, 'f', -1, 64) + ", lon:" + strconv.FormatFloat(v.Lon, 'f', -1, 64) + ", title:'" + v.Name + "'},")
 	}
 	buffer.Truncate(buffer.Len() - 1)
 	buffer.WriteString("];")
