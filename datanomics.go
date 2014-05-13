@@ -27,6 +27,7 @@ var (
 	address string
 	verbose bool
 	database string
+	userDatabase string
 	sensorDataDir string
 	configFile string
 	scPort string
@@ -44,6 +45,7 @@ type configVars struct {
 	Address string
 	Verbose bool
 	Database string
+	UserDatabase string
 	SensorDataDir string
 	ScPort string
 	RemoteServers []string
@@ -61,6 +63,7 @@ var (
 	h Hub
 	sh SensorHub
 	srC SendReadingsCache
+	udb Users
 )
 
 var flushPeriod = 300 // seconds
@@ -76,6 +79,7 @@ func init() {
 	flag.BoolVar(&verbose, "verbose", false, "be verbose")
 	flag.BoolVar(&verbose, "v", false, "be verbose" + " (shorthand)")
 	flag.StringVar(&database, "database", "db.json", "database file")
+	flag.StringVar(&userDatabase, "users' database", "usersdb.json", "database file")
 	flag.StringVar(&sensorDataDir, "storage", "sensors", "directory to store sensor data")
 	flag.StringVar(&sensorDataDir, "s", "sensors", "directory to store sensor data" + " (shorthand)")
 	flag.StringVar(&configFile, "config", "", "configuration file")
@@ -108,6 +112,7 @@ var validRoot = regexp.MustCompile("^/$")
 var validView = regexp.MustCompile("^/view/([a-zA-Z0-9-]+)/?$")
 var validStats = regexp.MustCompile("^/_stats/?$")
 var validLogin = regexp.MustCompile("^/login/?$")
+var validLogged = regexp.MustCompile("^/login/success/?$")
 
 func makeHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regexp) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -209,6 +214,7 @@ func main() {
 			address = confR.Address
 			verbose = confR.Verbose
 			database = confR.Database
+			userDatabase = confR.UserDatabase
 			sensorDataDir = confR.SensorDataDir
 			scPort = confR.ScPort
 			remoteServers = confR.RemoteServers
@@ -222,7 +228,7 @@ func main() {
 			log.Println("Loaded configuration. Command line options will be ignored.")
 		}
 
-		confR = configVars{serverRootDir, port, address, verbose, database, sensorDataDir, scPort,
+		confR = configVars{serverRootDir, port, address, verbose, database, userDatabase, sensorDataDir, scPort,
 			remoteServers, flushPeriod, sendRemotePeriod, googleAccessKey, googleSecretKey,
 			googleRedirect, githubAccessKey, githubSecretKey}
 		confJ, _ := json.Marshal(confR)
@@ -234,7 +240,6 @@ func main() {
 		}
 	}
 
-	// t := Database{ make(map[string] sensorlog) }
 	t := DatabaseRRD{make(map[string]string), make(map[string]*rrd.Updater), make(map[string]sensorMetadata)}
 	file, err := ioutil.ReadFile(database)
 	if err != nil {
@@ -247,6 +252,17 @@ func main() {
 
 	d = &t
 	go d.FlushDatabases()
+
+	ut := UserDB{make(map[string]User)}
+	file, err = ioutil.ReadFile(userDatabase)
+	if err != nil {
+		log.Println("Using new user database.")
+	} else if err = json.Unmarshal(file, &t); err != nil {
+		log.Println("User database corrupt. Creating new.", err)
+	} else {
+		log.Println("Loaded user database.")
+	}
+	udb = &ut
 
 	sensorList()
 	latlonList()
@@ -269,7 +285,7 @@ func main() {
 	go cleanup()
 
 	auth.Config.CookieSecret = []byte("82f6e00c-9053-4305-8662-aa163daca490")
-	auth.Config.LoginSuccessRedirect = "/"
+	auth.Config.LoginSuccessRedirect = "/login/success"
 	auth.Config.CookieSecure = false
 	auth.Config.LoginRedirect = "/login/"
 
@@ -279,6 +295,7 @@ func main() {
 	// "" is for scope (which user data we need)
 	githubHandler := auth.Github(githubAccessKey, githubSecretKey, "")
 	http.Handle("/login/github", githubHandler)
+	http.Handle("/login/success", auth.SecureUser(makeSecureHandler(userLoggedHandler, *validLogged)))
 
 	http.HandleFunc("/log/", logHandler)
 	http.HandleFunc("/q/", makeHandler(queryHandler, *validQuery))

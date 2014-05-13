@@ -15,7 +15,9 @@
 
 # Long Term
 
-- Users
-- Log to be: /log/UID/sensor-name/[st]/timestamp. UID instead of username to prevent guessing
+- Users (database)
+- Share public sensor
+- Aggregate sensors (many sources -> one sensor)
+- Log to be: /log/UID/SID/[st]/timestamp. UID instead of username to prevent guessing
 - Manually add/delete sensors
 - Cache/expire static items

@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"os"
 	"github.com/bradrydzewski/go.auth"
+	"io/ioutil"
 )
 
 var templates *template.Template
@@ -264,12 +265,15 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
-
-
-
-
-
-
-
-
+func userLoggedHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
+	if ! udb.Exists(u.Id()) {
+		_ = udb.Add(User{u.Id(), u.Name(), u.Picture(), u.Email(), u.Link()})
+		log.Println("Added new user: " + u.Id())
+	}
+	udbs, _ := json.Marshal(udb)
+	err := ioutil.WriteFile(userDatabase, udbs, 0600)
+	if err != nil {
+		log.Println("Error saving user database.")
+	}
+	http.Redirect(w, r, "/", http.StatusFound)
+}
