@@ -6,7 +6,11 @@
 
 # For production
 
-- Enable caching of templates again (100x speed-up)
+- Oauth has something set to false, should set to true.
+
+# For OpenSourcing
+
+- Google Client Keys and first Google Public APIs have been leaked to git. Revoke them and use new Client Keys. (Public API isn't use anywhere anymore)
 
 
 # Long Term

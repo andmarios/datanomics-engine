@@ -128,11 +128,11 @@ func userMenu(u auth.User) template.HTML {
 		return template.HTML(`
             <li><a href="` + u.Link() + `"><img class="img-rounded" height="50px" src="`+ u.Picture() +`" /> ` + u.Name() + `</a></li>
             <li class="divider"></li>
-            <li><a href="/auth/logout"><i class="fa fa-sign-out fa-fw"></i> Logout</a></li>
+            <li><a href="/logout"><i class="fa fa-sign-out fa-fw"></i> Logout</a></li>
 `)
 	} else {
 		return template.HTML(`
-            <li><a href="/oauth2callback"><i class="fa fa-sign-in fa-fw"></i> Login</a></li>`)
+            <li><a href="/login/"><i class="fa fa-sign-in fa-fw"></i> Login</a></li>`)
 	}
 }
 
@@ -255,6 +255,16 @@ func logOutHandler(w http.ResponseWriter, r *http.Request) {
 	auth.DeleteUserCookie(w, r)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	err := templates.ExecuteTemplate(w, "login.html", nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Println(err)
+	}
+}
+
+
 
 
 

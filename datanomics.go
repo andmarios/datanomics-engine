@@ -31,6 +31,9 @@ var (
 	configFile string
 	scPort string
 	remoteServers []string
+	googleAccessKey string
+	googleSecretKey string
+	googleRedirect string
 )
 
 type configVars struct {
@@ -44,6 +47,9 @@ type configVars struct {
 	RemoteServers []string
 	FlushPeriod int
 	SendRemotePeriod int
+	GoogleAccessKey string
+	GoogleSecretKey string
+	GoogleRedirect string
 }
 
 var (
@@ -70,6 +76,11 @@ func init() {
 	flag.StringVar(&sensorDataDir, "s", "sensors", "directory to store sensor data" + " (shorthand)")
 	flag.StringVar(&configFile, "config", "", "configuration file")
 	flag.StringVar(&scPort, "scport", "12127", "port to listen for remote readings")
+
+	// For pacakage auth
+	flag.StringVar(&googleAccessKey, "gcid", "[client id]", "your google client ID")
+	flag.StringVar(&googleSecretKey, "gcs", "[secret]", "your google client secret")
+	flag.StringVar(&googleRedirect, "gcb", "http://localhost:8080/oauth2callback", "your google redirect URI")
 }
 
 func debug(s string) {
@@ -90,6 +101,7 @@ var validInfoQuery = regexp.MustCompile("^/iq/([a-zA-Z0-9-]+)/?$")
 var validRoot = regexp.MustCompile("^/$")
 var validView = regexp.MustCompile("^/view/([a-zA-Z0-9-]+)/?$")
 var validStats = regexp.MustCompile("^/_stats/?$")
+var validLogin = regexp.MustCompile("^/login/?$")
 
 func makeHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regexp) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -137,7 +149,8 @@ func loadTemplates() {
 		serverRootDir + "/templates/menu.html",
 		serverRootDir + "/templates/footer.html",
 		serverRootDir + "/templates/home.html",
-		serverRootDir + "/templates/sensor.html"))
+		serverRootDir + "/templates/sensor.html",
+		serverRootDir + "/templates/login.html"))
 }
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -195,10 +208,14 @@ func main() {
 			remoteServers = confR.RemoteServers
 			flushPeriod = confR.FlushPeriod
 			sendRemotePeriod = confR.SendRemotePeriod
+			googleAccessKey = confR.GoogleAccessKey
+			googleSecretKey = confR.GoogleSecretKey
+			googleRedirect = confR.GoogleRedirect
 			log.Println("Loaded configuration. Command line options will be ignored.")
 		}
 
-		confR = configVars{serverRootDir, port, address, verbose, database, sensorDataDir, scPort, remoteServers, flushPeriod, sendRemotePeriod}
+		confR = configVars{serverRootDir, port, address, verbose, database, sensorDataDir, scPort,
+			remoteServers, flushPeriod, sendRemotePeriod, googleAccessKey, googleSecretKey, googleRedirect}
 		confJ, _ := json.Marshal(confR)
 		err = ioutil.WriteFile(configFile, confJ, 0600)
 		if err != nil {
@@ -242,17 +259,13 @@ func main() {
 
 	go cleanup()
 
-	googleAccessKey := flag.String("access_key", "abcdefghijklmnopqrstuvwxyz", "your oauth access key")
-	googleSecretKey := flag.String("secret_key", "abcdefghijklmnopqrstuvwxyz", "your oauth secret key")
-	googleRedirect := "http://localhost:8080/oauth2callback"
-
 	auth.Config.CookieSecret = []byte("82f6e00c-9053-4305-8662-aa163daca490")
 	auth.Config.LoginSuccessRedirect = "/"
 	auth.Config.CookieSecure = false
-	auth.Config.LoginRedirect = "/oauth2callback"
+	auth.Config.LoginRedirect = "/login/"
 
-	googHandler := auth.Google(*googleAccessKey, *googleSecretKey, googleRedirect)
-	http.Handle("/oauth2callback", googHandler)
+	googHandler := auth.Google(googleAccessKey, googleSecretKey, googleRedirect)
+	http.Handle("/login/google", googHandler)
 
 	http.HandleFunc("/log/", logHandler)
 	http.HandleFunc("/q/", makeHandler(queryHandler, *validQuery))
@@ -263,7 +276,8 @@ func main() {
 	http.Handle("/_sensorticker", websocket.Handler(sensorTickerHandler))
 	http.HandleFunc("/_stats/", makeNoLogHandler(statsHandler, *validStats))
 	http.HandleFunc("/view/", auth.SecureUser(makeSecureHandler(viewHandler, *validView)))
-	http.HandleFunc("/auth/logout", logOutHandler)
+	http.HandleFunc("/login/", makeHandler(loginHandler, *validLogin))
+	http.HandleFunc("/logout", logOutHandler)
 	http.HandleFunc("/", auth.SecureGuest(makeSecureHandler(homeHandler, *validRoot)))
 
 	log.Print("Starting webserver. Listening on " + address + ":" + port)
