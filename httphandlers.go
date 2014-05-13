@@ -34,11 +34,15 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// From down here there is a bit of duplication with sendRemoteReading(). Remember to change both if needed.
 	if ! d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
-		h.Pipe <- Hometicker{"New sensor: " + m[1], "fa-check-circle", "success",
-			"Sensor <em>" + m[1] + "</em> succesfully added."}
-		d.AddT(m[1], tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
-		sensorList()
-		latlonList()
+		h.Pipe <- Hometicker{"Unknown sensor: " + m[1], "fa-times-circle", "danger",
+			"Sensor <em>" + m[1] + "</em> isn't registered. Ignored."}
+		// h.Pipe <- Hometicker{"New sensor: " + m[1], "fa-check-circle", "success",
+		//	"Sensor <em>" + m[1] + "</em> succesfully added."}
+		// d.AddT(m[1], tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
+		// sensorList()
+		// latlonList()
+		http.Error(w, "Sensor not found", http.StatusNotFound)
+                return
 	}
 	// We can't check this with rrd cache. We do it though on database flush.
 	// _, told := d.Last(m[1])
