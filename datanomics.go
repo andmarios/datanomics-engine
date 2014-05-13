@@ -105,6 +105,20 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regex
 	}
 }
 
+func makeSecureHandler(fn func (http.ResponseWriter, *http.Request, auth.User), rexp regexp.Regexp) auth.SecureHandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request, u auth.User) {
+		m := rexp.FindStringSubmatch(r.URL.Path)
+		logRequest(r)
+		w.Header().Add("Server", version)
+		w.Header().Add("Vary", "Accept-Encoding")
+		if m == nil {
+			http.NotFound(w, r)
+			return
+		}
+		fn(w, r, u)
+	}
+}
+
 func makeNoLogHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regexp) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := rexp.FindStringSubmatch(r.URL.Path)
@@ -228,24 +242,16 @@ func main() {
 
 	go cleanup()
 
-/////////////////
-	// Or you can set your access key and secret key by replacing the default values below (2nd input param in flag.String)
 	googleAccessKey := flag.String("access_key", "abcdefghijklmnopqrstuvwxyz", "your oauth access key")
 	googleSecretKey := flag.String("secret_key", "abcdefghijklmnopqrstuvwxyz", "your oauth secret key")
-	flag.Parse()
-
-	//url that google should re-direct to
 	googleRedirect := "http://datanomics.andmarios.com/oauth2callback"
 
-	// set the auth parameters
 	auth.Config.CookieSecret = []byte("82f6e00c-9053-4305-8662-aa163daca490")
 	auth.Config.LoginSuccessRedirect = "/"
 	auth.Config.CookieSecure = false
 
-	// login handler
 	googHandler := auth.Google(*googleAccessKey, *googleSecretKey, googleRedirect)
-	http.Handle("/auth/login", googHandler)
-
+	http.Handle("/oauth2callback", googHandler)
 
 	http.HandleFunc("/log/", logHandler)
 	http.HandleFunc("/q/", makeHandler(queryHandler, *validQuery))
@@ -255,9 +261,9 @@ func main() {
 	http.Handle("/_hometicker", websocket.Handler(homeTickerHandler))
 	http.Handle("/_sensorticker", websocket.Handler(sensorTickerHandler))
 	http.HandleFunc("/_stats/", makeNoLogHandler(statsHandler, *validStats))
-	http.HandleFunc("/view/", auth.SecureFunc(makeHandler(viewHandler, *validView)))
+	http.HandleFunc("/view/", auth.SecureUser(makeSecureHandler(viewHandler, *validView)))
 	http.HandleFunc("/auth/logout", logOutHandler)
-	http.HandleFunc("/", makeHandler(homeHandler, *validRoot))
+	http.HandleFunc("/", auth.SecureGuest(makeSecureHandler(homeHandler, *validRoot)))
 
 	log.Print("Starting webserver. Listening on " + address + ":" + port)
 	log.Print("Webroot set to \"" + serverRootDir + "\".")

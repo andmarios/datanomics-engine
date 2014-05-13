@@ -96,6 +96,7 @@ func sensorList() { // When we add/remove sensors manually, make this run once a
 
 type HomePage struct {
 	Title string
+        LoginInfo template.HTML
 	SensorList template.HTML
 	CustomScript template.HTML
 	LatLonList template.JS
@@ -118,10 +119,23 @@ const homeCustomScript = template.HTML(`
       </script>
 `)
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
+func userMenu(u auth.User) template.HTML {
+	if u != nil {
+		return template.HTML(`
+            <li><a href="` + u.Link() + `"><img class="img-rounded" height="50px" src="`+ u.Picture() +`" /> ` + u.Name() + `</a></li>
+            <li class="divider"></li>
+            <li><a href="/auth/logout"><i class="fa fa-sign-out fa-fw"></i> Logout</a></li>
+`)
+	} else {
+		return template.HTML(`
+            <li><a href="/oauth2callback"><i class="fa fa-sign-in fa-fw"></i> Login</a></li>`)
+	}
+}
+
+func homeHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 	err := templates.ExecuteTemplate(w,
 		"home.html",
-		HomePage{"Datanomics alpha", SensorList, homeCustomScript, LatLonList})
+		HomePage{"Datanomics alpha", userMenu(u), SensorList, homeCustomScript, LatLonList})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Println(err)
@@ -144,6 +158,7 @@ func latlonList() {
 
 type ViewPage struct {
 	Title string
+	LoginInfo template.HTML
 	Sensor string
 	Data template.JS
 	SensorList template.HTML
@@ -162,12 +177,12 @@ const viewCustomScript = template.HTML(`    <!--[if lte IE 8]><script src="js/ex
     <script src="/assets/cjs/sensorticker.js"></script>
 `)
 
-func viewHandler(w http.ResponseWriter, r *http.Request) {
+func viewHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 	m := validView.FindStringSubmatch(r.URL.Path)
         if ! d.Exists(m[1]) {
 		err := templates.ExecuteTemplate(w,
 			"sensor.html",
-			ViewPage{"Datanomics alpha | Sensor not found", "Error", "Sensor not found", SensorList, viewCustomScript})
+			ViewPage{"Datanomics alpha | Sensor not found", userMenu(u), "Error", "Sensor not found", SensorList, viewCustomScript})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -179,7 +194,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 		n := d.Info(m[1]).Name
 		err := templates.ExecuteTemplate(w,
                         "sensor.html",
-                        ViewPage{"Datanomics alpha | " + n, n, template.JS(s), SensorList, viewCustomScript})
+                        ViewPage{"Datanomics alpha | " + n, userMenu(u), n, template.JS(s), SensorList, viewCustomScript})
                 if err != nil {
                         http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
