@@ -31,7 +31,7 @@ func listenForRemoteReadings() {
 			rrr := &[]remoteReading{}
 			dec.Decode(rrr)
 			for _, rr := range *rrr {
-				if ! d.Exists(rr.S) { // Remove when you add code to add/delete sensors instead of adding them automatically.
+				if ! d.Exists(rr.S) { // Since this sensor comes from another datanomics server, we trust is it ok.
 					h.Pipe <- Hometicker{"New sensor: " + rr.S, "fa-check-circle", "success",
 						"Sensor <em>" + rr.S + "</em> succesfully added."}
 					d.AddT(rr.S, rr.T) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
@@ -67,7 +67,7 @@ func (s *SendReadingsCache) SendReadingsCron() {
         }()
 }
 
-
+// TODO: If we can send to someone, store the readings (up to a size) to try later.
 func sendRemoteReading(sra []remoteReading) {
 	for _, rHost := range remoteServers {
 		conn, err := net.Dial("tcp", rHost)

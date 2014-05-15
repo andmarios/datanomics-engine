@@ -15,9 +15,11 @@
 
 # Long Term
 
-- Users (database)
+- Users: normal database (eg MariaDB), use custom UUID as providers' ID varies a lot
+- db.json: save only when needed and with every flush
 - Share public sensor
 - Aggregate sensors (many sources -> one sensor)
 - Log to be: /log/UID/SID/[st]/timestamp. UID instead of username to prevent guessing
 - Manually add/delete sensors
 - Cache/expire static items
+- On replication part, store values when you can't send them and retry.
