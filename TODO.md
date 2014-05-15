@@ -7,6 +7,11 @@
 # For production
 
 - Oauth has something set to false, should set to true.
+- Export to CSV: breaks for firefox when units are % (humidity).
+- Websockets connection accepted only from our server. Example code for home/sensorTickerHandler:
+  `log.Println(s.Ws.RemoteAddr().String())`
+  This always returns the URL of the server without paths at the end, eg http://datanomics.andmarios.com (whether we are at home or sensor view).
+
 
 # For OpenSourcing
 
@@ -23,3 +28,4 @@
 - Manually add/delete sensors
 - Cache/expire static items
 - On replication part, store values when you can't send them and retry.
+- Embed graph

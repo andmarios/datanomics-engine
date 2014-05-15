@@ -277,3 +277,20 @@ func userLoggedHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 	}
 	http.Redirect(w, r, "/", http.StatusFound)
 }
+
+type serve404Page struct {
+        Title string
+        LoginInfo template.HTML
+	SensorList template.HTML
+	CustomScript template.JS
+}
+
+func serve404(w http.ResponseWriter, u auth.User) {
+	w.WriteHeader(http.StatusNotFound)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	err := templates.ExecuteTemplate(w, "404.html", serve404Page{"Datanomics™ alpha | Page not found", userMenu(u), SensorList, template.JS("")})
+        if err != nil {
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+                log.Println(err)
+        }
+}

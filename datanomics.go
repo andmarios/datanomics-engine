@@ -121,7 +121,7 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regex
 		w.Header().Add("Server", version)
 		w.Header().Add("Vary", "Accept-Encoding")
 		if m == nil {
-			http.NotFound(w, r)
+			serve404(w, nil)
 			return
 		}
 		fn(w, r)
@@ -135,7 +135,7 @@ func makeSecureHandler(fn func (http.ResponseWriter, *http.Request, auth.User), 
 		w.Header().Add("Server", version)
 		w.Header().Add("Vary", "Accept-Encoding")
 		if m == nil {
-			http.NotFound(w, r)
+			serve404(w, u)
 			return
 		}
 		fn(w, r, u)
@@ -148,7 +148,7 @@ func makeNoLogHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.
 		w.Header().Add("Server", version)
 		w.Header().Add("Vary", "Accept-Encoding")
 		if m == nil {
-			http.NotFound(w, r)
+			serve404(w, nil)
 			return
 		}
 		fn(w, r)
@@ -161,7 +161,8 @@ func loadTemplates() {
 		serverRootDir + "/templates/footer.html",
 		serverRootDir + "/templates/home.html",
 		serverRootDir + "/templates/sensor.html",
-		serverRootDir + "/templates/login.html"))
+		serverRootDir + "/templates/login.html",
+		serverRootDir + "/templates/404.html"))
 }
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
