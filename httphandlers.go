@@ -389,6 +389,7 @@ func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
            <p>You can send readings from your sensor to: <pre>http://datanomics.andmarios.com/log/` + suuid.String() + `</pre>. </p>
          </div>`)
 		}
+		log.Println("New sensor added: " + suuid.String())
 	}
 }
 
