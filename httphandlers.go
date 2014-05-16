@@ -13,6 +13,7 @@ import (
 	"github.com/bradrydzewski/go.auth"
 	"io/ioutil"
 	"regexp"
+	"github.com/nu7hatch/gouuid"
 )
 
 var templates *template.Template
@@ -128,7 +129,7 @@ const homeCustomScript = template.HTML(`
 func userMenu(u auth.User) template.HTML {
 	if u != nil {
 		return template.HTML(`
-            <li><a href="` + u.Link() + `"><img class="img-rounded" height="50px" src="`+ u.Picture() +`" /> ` + u.Name() + `</a></li>
+            <li><a id="username" href="` + u.Link() + `"><img class="img-rounded" height="50px" src="`+ u.Picture() +`" /> ` + u.Name() + `</a></li>
             <li class="divider"></li>
             <li><a href="/logout"><i class="fa fa-sign-out fa-fw"></i> Logout</a></li>
 `)
@@ -218,7 +219,9 @@ func queryInfoHandler(w http.ResponseWriter, r *http.Request) {
                 return
         }
 	debugln("Query for sensor " + m[1])
-	a, _ := json.Marshal(d.Info(m[1]))
+	t := d.Info(m[1])
+	tt, _ := udb.Info(t.Owner)
+	a, _ := json.Marshal(sensorMetadata{t.Name, tt.Name, t.Unit, t.Info, t.Lat, t.Lon})
 	fmt.Fprintf(w, string(a))
 }
 
@@ -301,44 +304,92 @@ func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 		serve404(w, u)
 		return
 	}
-
 	err := r.ParseForm()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Println(err)
 		return
 	}
+
+	accepted := true
+	problems := ""
+
+	matched, _ := regexp.Compile("^[a-zA-Z0-9\\s-]+$")
+	name := ""
+	if ! matched.MatchString(r.FormValue("fsenName")) {
+		accepted = false
+		problems += "<li>name is wrong</li>"
+	} else {
+		name = r.FormValue("fsenName")
+	}
+
 	lat, err := strconv.ParseFloat(r.FormValue("fsenLat"), 64)
 	if err != nil {
-		log.Println("lat not number")
+		accepted = false
+		problems += "<li>latitude is wrong</li>"
 	} else	if lat > 90 || lat < -90 {
-		log.Println("wrong lat")
+		accepted = false
+		problems += "<li>latitude is wrong</li>"
 	}
+
 	lon, err := strconv.ParseFloat(r.FormValue("fsenLon"), 64)
 	if err != nil {
-		log.Println("lon not number")
+		accepted = false
+		problems += "<li>longitude is wrong</li>"
 	} else if lon > 180 || lon < -180 {
-		log.Println("wrong lon")
+		accepted = false
+		problems += "<li>longtitude is wrong</li>"
 	}
-	matched, _ := regexp.Compile("^[a-zA-Z0-9\\s-]+$")
-	if ! matched.MatchString(r.FormValue("fsenName")) {
-		log.Println("Name contains not permitted characters.")
+
+	units := "raw"
+	if r.FormValue("fsenUnits") != "" {
+		units = r.FormValue("fsenUnits")
 	}
-	matched, _ = regexp.Compile("^[a-zA-Z0-9]+$")
-	if ! matched.MatchString(r.FormValue("fsenUUID")) {
-		log.Println("UUID contains not permitted characters.")
-	}
-	if r.FormValue("fsenUnits") == "" {
-		log.Println("Setting units to raw.")
-	}
+
+	info := r.FormValue("fsenInfo")
+
 	if r.FormValue("fsenAgree") != "on" {
-		log.Println("Not agreed to TOS")
+		accepted = false
+		problems += "<li>you did not agreed to the TOS</li>"
 	}
 
+	suuid, err := uuid.NewV4()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+                log.Println(err)
+        }
 
-//	log.Println(r)
-	http.Redirect(w, r, "/", http.StatusFound)
-//	fmt.Fprintf(w, "ok")
+	if ! accepted {
+		fmt.Fprintf(w, `
+         <div class="alert alert-danger fade in">
+           <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+           <h4>Sensor not added</h4>
+           <p>We couldn't add your sensor. Here is a list of what went wrong:
+           <ul>` + problems + `</ul>
+           </p>
+         </div>`)
+		return
+	}
+
+	if accepted {
+		err = d.AddM(suuid.String(), sensorMetadata{name, u.Id(), units, info, lat, lon})
+		if err != nil {
+			fmt.Fprintf(w, `
+         <div class="alert alert-danger fade in">
+           <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+           <h4>Sensor not added</h4>
+           <p>We couldn't add your sensor. An unknown error occured. Please try again and if it persists, contact support.</p>
+         </div>`)
+		} else {
+			fmt.Fprintf(w, `
+         <div class="alert alert-success fade in">
+           <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+           <h4>Sensor added</h4>
+           <p>You can find your new sensor page <a href="/view/` + suuid.String() + `/">here</a>. </p>
+           <p>You can send readings from your sensor to: <pre>http://datanomics.andmarios.com/log/` + suuid.String() + `</pre>. </p>
+         </div>`)
+		}
+	}
 }
 
 // type serve500Page struct {

@@ -11,11 +11,13 @@ import (
         "io/ioutil"
 	"github.com/ziutek/rrd"
 	"math"
+	"errors"
 )
 
 type Query interface {
 	Add(string)
-	AddT(string, time.Time)
+	AddT(string, time.Time) error
+	AddM(string, sensorMetadata) error
 	Delete(string)
 	List() []string
 	Store(string, string)
@@ -82,10 +84,23 @@ func (d DatabaseRRD) helperCheckFlushBeforeRead(s string) bool {
 }
 
 func (d DatabaseRRD) Add(s string) {
-	d.AddT(s, time.Now())
+	_ = d.AddT(s, time.Now())
 }
 
-func (d DatabaseRRD) AddT(s string, t time.Time) {
+func (d DatabaseRRD) AddM(s string, m sensorMetadata) error {
+	if d.Exists(s) {
+		log.Println("Attempt to add sensor that exists from web interface!")
+		return errors.New("Sensor exists")
+	}
+	err := d.AddT(s, time.Now().Add(-24 * 365 * time.Hour))
+	if err != nil {
+		return err
+	}
+	d.Metadata[s] = m
+	return nil
+}
+
+func (d DatabaseRRD) AddT(s string, t time.Time) error {
 	mutexRRD.Lock()
 	dbfile := sensorDataDir + "/" + s
 	c := rrd.NewCreator(dbfile, t.Add(-time.Second), step)
@@ -97,6 +112,7 @@ func (d DatabaseRRD) AddT(s string, t time.Time) {
 	err := c.Create(true)
 	if err != nil {
 		log.Println(err)
+		return errors.New("Error creating RRD")
 	}
 	d.Sensor[s] = s
 	d.Open[s] = rrd.NewUpdater(dbfile)
@@ -105,7 +121,9 @@ func (d DatabaseRRD) AddT(s string, t time.Time) {
         mutexRRD.Unlock()
         if err != nil {
                 log.Println(err)
+		return errors.New("Error writing RRD")
         }
+	return nil
 }
 
 func (d DatabaseRRD) Delete(s string) {
