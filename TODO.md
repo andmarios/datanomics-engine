@@ -11,6 +11,7 @@
 - Websockets connection accepted only from our server. Example code for home/sensorTickerHandler:
   `log.Println(s.Ws.RemoteAddr().String())`
   This always returns the URL of the server without paths at the end, eg http://datanomics.andmarios.com (whether we are at home or sensor view).
+- /iq/<sensor> leaks private data. Needs a change in implementation.
 
 
 # For OpenSourcing

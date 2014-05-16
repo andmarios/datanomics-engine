@@ -306,7 +306,7 @@ func main() {
 	http.Handle("/_hometicker", websocket.Handler(homeTickerHandler))
 	http.Handle("/_sensorticker", websocket.Handler(sensorTickerHandler))
 	http.HandleFunc("/_stats/", makeNoLogHandler(statsHandler, *validStats))
-	http.HandleFunc("/view/", auth.SecureUser(makeSecureHandler(viewHandler, *validView)))
+	http.HandleFunc("/view/", auth.SecureGuest(makeSecureHandler(viewHandler, *validView)))
 	http.HandleFunc("/login/", makeHandler(loginHandler, *validLogin))
 	http.HandleFunc("/logout", logOutHandler)
 	http.HandleFunc("/post/addsensor", auth.SecureUser(addSensorHandler))
