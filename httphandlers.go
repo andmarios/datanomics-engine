@@ -337,7 +337,8 @@ func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 
 
 //	log.Println(r)
-	fmt.Fprintf(w, "ok")
+	http.Redirect(w, r, "/", http.StatusFound)
+//	fmt.Fprintf(w, "ok")
 }
 
 // type serve500Page struct {

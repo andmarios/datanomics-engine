@@ -258,7 +258,7 @@ func main() {
 	file, err = ioutil.ReadFile(userDatabase)
 	if err != nil {
 		log.Println("Using new user database.")
-	} else if err = json.Unmarshal(file, &t); err != nil {
+	} else if err = json.Unmarshal(file, &ut); err != nil {
 		log.Println("User database corrupt. Creating new.", err)
 	} else {
 		log.Println("Loaded user database.")
