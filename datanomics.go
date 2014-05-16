@@ -309,6 +309,7 @@ func main() {
 	http.HandleFunc("/view/", auth.SecureUser(makeSecureHandler(viewHandler, *validView)))
 	http.HandleFunc("/login/", makeHandler(loginHandler, *validLogin))
 	http.HandleFunc("/logout", logOutHandler)
+	http.HandleFunc("/post/addsensor", auth.SecureUser(addSensorHandler))
 	http.HandleFunc("/", auth.SecureGuest(makeSecureHandler(homeHandler, *validRoot)))
 
 	log.Print("Starting webserver. Listening on " + address + ":" + port)

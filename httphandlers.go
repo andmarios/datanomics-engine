@@ -12,6 +12,7 @@ import (
 	"os"
 	"github.com/bradrydzewski/go.auth"
 	"io/ioutil"
+	"regexp"
 )
 
 var templates *template.Template
@@ -294,3 +295,73 @@ func serve404(w http.ResponseWriter, u auth.User) {
                 log.Println(err)
         }
 }
+
+func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
+	if r.Method != "POST" {
+		serve404(w, u)
+		return
+	}
+
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Println(err)
+		return
+	}
+	lat, err := strconv.ParseFloat(r.FormValue("fsenLat"), 64)
+	if err != nil {
+		log.Println("lat not number")
+	} else	if lat > 90 || lat < -90 {
+		log.Println("wrong lat")
+	}
+	lon, err := strconv.ParseFloat(r.FormValue("fsenLon"), 64)
+	if err != nil {
+		log.Println("lon not number")
+	} else if lon > 180 || lon < -180 {
+		log.Println("wrong lon")
+	}
+	matched, _ := regexp.Compile("^[a-zA-Z0-9\\s-]+$")
+	if ! matched.MatchString(r.FormValue("fsenName")) {
+		log.Println("Name contains not permitted characters.")
+	}
+	matched, _ = regexp.Compile("^[a-zA-Z0-9]+$")
+	if ! matched.MatchString(r.FormValue("fsenUUID")) {
+		log.Println("UUID contains not permitted characters.")
+	}
+	if r.FormValue("fsenUnits") == "" {
+		log.Println("Setting units to raw.")
+	}
+	if r.FormValue("fsenAgree") != "on" {
+		log.Println("Not agreed to TOS")
+	}
+
+
+//	log.Println(r)
+	fmt.Fprintf(w, "ok")
+}
+
+// type serve500Page struct {
+//         Title string
+//         LoginInfo template.HTML
+//         SensorList template.HTML
+//         CustomScript template.JS
+// }
+
+
+// func serve500(w http.ResponseWriter, u auth.User) {
+// 	w.WriteHeader(http.StatusInternalServerError)
+// 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+// 	err := templates.ExecuteTemplate(w, "500.html", serve404Page{"Datanomics™ alpha | Internal Server Error", userMenu(u), SensorList, template.JS("")})
+//         if err != nil {
+//                 http.Error(w, err.Error(), http.StatusInternalServerError)
+//                 log.Println(err)
+//         }
+//
+
+
+
+
+
+
+
+
