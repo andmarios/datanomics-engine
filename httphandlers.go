@@ -111,7 +111,6 @@ type HomePage struct {
 
 const homeCustomScript = template.HTML(`
      <script src="/assets/cjs/hometicker.js"></script>
-     <script src="http://maps.google.com/maps/api/js?sensor=false&libraries=geometry&v=3.7"></script>
      <script src="/assets/js/maplace.min.js"></script>
       <script>
        $(function() {
@@ -390,6 +389,7 @@ func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
          </div>`)
 		}
 		log.Println("New sensor added: " + suuid.String())
+		sensorList()
 	}
 }
 

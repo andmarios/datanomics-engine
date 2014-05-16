@@ -19,7 +19,7 @@ import (
 	"github.com/bradrydzewski/go.auth"
 )
 
-var version = "Datanomics ac41a8f+"
+var version = "Datanomics 591e50f+"
 
 var (
 	serverRootDir string
