@@ -41,11 +41,12 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 			"Sensor <em>" + m[1] + "</em> isn't registered. Ignored."}
 		// h.Pipe <- Hometicker{"New sensor: " + m[1], "fa-check-circle", "success",
 		//	"Sensor <em>" + m[1] + "</em> succesfully added."}
-		d.AddT(m[1], tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
-		// sensorList()
-		// latlonList()
-		//http.Error(w, "Sensor not found", http.StatusNotFound)
-		//return
+		// For Benchmark puproses uncooment the next line and comment the http.Error and return lines below.
+		// d.AddT(m[1], tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
+		//sensorList()
+		//latlonList()
+		http.Error(w, "Sensor not found", http.StatusNotFound)
+		return
 	}
 	// We can't check this with rrd cache. We do it though on database flush.
 	// _, told := d.Last(m[1])
@@ -58,6 +59,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 
 	d.StoreT(m[1], m[2], tnew)
 	srC.Pipe <- remoteReading{m[1], m[2], tnew}
+	j.Pipe <- m[1] + "/" + m[2] + "/t/" + strconv.FormatInt(tnew.Unix(), 10)
 	t := d.Info(m[1]).Name
 	h.Pipe <- Hometicker{"<a href='/view/" + m[1] + "'>" + t + "</a>: new reading", "fa-plus-circle", "info",
 		t + "</em> sent value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>"}
@@ -393,6 +395,7 @@ func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 		}
 		log.Println("New sensor added: " + suuid.String())
 		sensorList()
+		latlonList()
 	}
 }
 

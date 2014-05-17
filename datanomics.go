@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-var version = "Datanomics c7cee55+"
+var version = "Datanomics 5a96dad+"
 
 var (
 	serverRootDir   string
@@ -29,6 +29,7 @@ var (
 	database        string
 	userDatabase    string
 	sensorDataDir   string
+	journalDir      string
 	configFile      string
 	scPort          string
 	remoteServers   []string
@@ -47,6 +48,7 @@ type configVars struct {
 	Database         string
 	UserDatabase     string
 	SensorDataDir    string
+	JournalDir       string
 	ScPort           string
 	RemoteServers    []string
 	FlushPeriod      int
@@ -64,6 +66,7 @@ var (
 	sh  SensorHub
 	srC SendReadingsCache
 	udb Users
+	j   Journal
 )
 
 var flushPeriod = 300     // seconds
@@ -84,6 +87,7 @@ func init() {
 	flag.StringVar(&sensorDataDir, "s", "sensors", "directory to store sensor data"+" (shorthand)")
 	flag.StringVar(&configFile, "config", "", "configuration file")
 	flag.StringVar(&scPort, "scport", "12127", "port to listen for remote readings")
+	flag.StringVar(&journalDir, "journal", "journal", "directory to store journal")
 
 	// For pacakage auth
 	flag.StringVar(&googleAccessKey, "googlecid", "[client id]", "your google client ID")
@@ -184,6 +188,13 @@ func main() {
 	} else {
 		sensorDataDir, err = filepath.Abs(filepath.Dir(sensorDataDir))
 	}
+
+	if journalDir == "journal" {
+		journalDir, err = filepath.Abs(filepath.Dir(os.Args[0] + "/journal"))
+	} else {
+		journalDir, err = filepath.Abs(filepath.Dir(journalDir))
+	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -217,6 +228,7 @@ func main() {
 			database = confR.Database
 			userDatabase = confR.UserDatabase
 			sensorDataDir = confR.SensorDataDir
+			journalDir = confR.JournalDir
 			scPort = confR.ScPort
 			remoteServers = confR.RemoteServers
 			flushPeriod = confR.FlushPeriod
@@ -229,9 +241,9 @@ func main() {
 			log.Println("Loaded configuration. Command line options will be ignored.")
 		}
 
-		confR = configVars{serverRootDir, port, address, verbose, database, userDatabase, sensorDataDir, scPort,
-			remoteServers, flushPeriod, sendRemotePeriod, googleAccessKey, googleSecretKey,
-			googleRedirect, githubAccessKey, githubSecretKey}
+		confR = configVars{serverRootDir, port, address, verbose, database, userDatabase, sensorDataDir,
+			journalDir, scPort, remoteServers, flushPeriod, sendRemotePeriod, googleAccessKey,
+			googleSecretKey, googleRedirect, githubAccessKey, githubSecretKey}
 		confJ, _ := json.Marshal(confR)
 		err = ioutil.WriteFile(configFile, confJ, 0600)
 		if err != nil {
@@ -280,6 +292,10 @@ func main() {
 	srC.Readings = make([]remoteReading, 0, 10)
 	srC.Pipe = make(chan remoteReading)
 	go srC.SendReadingsCron()
+
+	j.Entries = make([]string, 0, 0)
+	j.Pipe = make(chan string)
+	go j.DatabaseLog()
 
 	go listenForRemoteReadings()
 

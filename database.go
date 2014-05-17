@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -325,6 +326,48 @@ func (d DatabaseRRD) Graph(s string) {
 	if err != nil {
 		log.Println(err)
 	}
+}
+
+type Journal struct {
+	Entries []string
+	Pipe    chan string
+}
+
+func (j *Journal) DatabaseLog() {
+	ticker := time.NewTicker(time.Duration(sendRemotePeriod) * time.Second)
+	tickerD := time.NewTicker(3600 * time.Second)
+	journalFile := journalDir + "/" + time.Now().Format("200601021504")
+	_, err := os.Create(journalFile)
+	if err != nil {
+		log.Println("Could not create journal file.")
+	}
+	go func() {
+		for {
+			select {
+			case r := <-j.Pipe:
+				j.Entries = append(j.Entries, r)
+			case <-ticker.C:
+				file, err := os.OpenFile(journalFile, os.O_RDWR|os.O_APPEND, 0600)
+				if err != nil {
+					log.Println("Could not open journal file. Entries dropped!")
+				}
+				for _, s := range j.Entries {
+					_, err = file.WriteString(s + "\n")
+					if err != nil {
+						log.Println("Could not write entry to journal file. Entry dropped!")
+					}
+				}
+				file.Close()
+				j.Entries = make([]string, 0, 0)
+			case <-tickerD.C:
+				journalFile = journalDir + "/" + time.Now().Format("200601021504")
+				_, err := os.Create(journalFile)
+				if err != nil {
+					log.Println("Could not create journal file.")
+				}
+			}
+		}
+	}()
 }
 
 func (d DatabaseRRD) FlushDatabases() {
