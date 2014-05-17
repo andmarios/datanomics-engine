@@ -1,10 +1,10 @@
 package main
 
 import (
-	"net"
 	"encoding/gob"
-	"time"
 	"log"
+	"net"
+	"time"
 )
 
 type remoteReading struct {
@@ -14,7 +14,7 @@ type remoteReading struct {
 }
 
 func listenForRemoteReadings() {
-	ln, err := net.Listen("tcp", address + ":" + scPort);
+	ln, err := net.Listen("tcp", address+":"+scPort)
 	if err != nil {
 		log.Println("Could not start remote readings listener.")
 		log.Println(err)
@@ -31,7 +31,7 @@ func listenForRemoteReadings() {
 			rrr := &[]remoteReading{}
 			dec.Decode(rrr)
 			for _, rr := range *rrr {
-				if ! d.Exists(rr.S) { // Since this sensor comes from another datanomics server, we trust is it ok.
+				if !d.Exists(rr.S) { // Since this sensor comes from another datanomics server, we trust is it ok.
 					h.Pipe <- Hometicker{"New sensor: " + rr.S, "fa-check-circle", "success",
 						"Sensor <em>" + rr.S + "</em> succesfully added."}
 					d.AddT(rr.S, rr.T) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
@@ -49,22 +49,22 @@ func listenForRemoteReadings() {
 
 type SendReadingsCache struct {
 	Readings []remoteReading
-	Pipe chan remoteReading
+	Pipe     chan remoteReading
 }
 
 func (s *SendReadingsCache) SendReadingsCron() {
-        ticker := time.NewTicker(time.Duration(sendRemotePeriod) * time.Second)
-        go func() {
-                for {
-                        select {
-			case r := <- s.Pipe:
+	ticker := time.NewTicker(time.Duration(sendRemotePeriod) * time.Second)
+	go func() {
+		for {
+			select {
+			case r := <-s.Pipe:
 				s.Readings = append(s.Readings, r)
-                        case <- ticker.C:
+			case <-ticker.C:
 				sendRemoteReading(s.Readings)
 				s.Readings = make([]remoteReading, 0, 0)
-                        }
-                }
-        }()
+			}
+		}
+	}()
 }
 
 // TODO: If we can send to someone, store the readings (up to a size) to try later.
@@ -81,15 +81,6 @@ func sendRemoteReading(sra []remoteReading) {
 		}
 	}
 }
-
-
-
-
-
-
-
-
-
 
 // Nice code that never worked. :/
 
@@ -145,14 +136,3 @@ func sendRemoteReading(sra []remoteReading) {
 // 		}
 // 	}
 //}
-
-
-
-
-
-
-
-
-
-
-

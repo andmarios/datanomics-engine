@@ -1,17 +1,17 @@
 package main
 
 import (
-	"time"
-	"sync"
-	"log"
-	"strconv"
 	"bytes"
-	"fmt"
-        "encoding/json"
-        "io/ioutil"
-	"github.com/ziutek/rrd"
-	"math"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/ziutek/rrd"
+	"io/ioutil"
+	"log"
+	"math"
+	"strconv"
+	"sync"
+	"time"
 )
 
 type Query interface {
@@ -36,7 +36,7 @@ type Query interface {
 }
 
 type graphPoint struct {
-	Time int64
+	Time  int64
 	Value float64
 }
 
@@ -46,26 +46,27 @@ type rawGraphPoint struct {
 	T int64
 	V interface{}
 }
+
 // RRD database implementation
 
 var (
-	step = uint(30) // seconds
+	step      = uint(30) // seconds
 	heartbeat = 2 * step
 )
 
 type DatabaseRRD struct {
-	Sensor map[string]string
-	Open map[string]*rrd.Updater
+	Sensor   map[string]string
+	Open     map[string]*rrd.Updater
 	Metadata map[string]sensorMetadata
 }
 
 type sensorMetadata struct {
-	Name string
+	Name  string
 	Owner string
-	Unit string
-	Info string
-	Lat  float64
-	Lon  float64
+	Unit  string
+	Info  string
+	Lat   float64
+	Lon   float64
 }
 
 var mutexRRD = &sync.Mutex{}
@@ -92,7 +93,7 @@ func (d DatabaseRRD) AddM(s string, m sensorMetadata) error {
 		log.Println("Attempt to add sensor that exists from web interface!")
 		return errors.New("Sensor exists")
 	}
-	err := d.AddT(s, time.Now().Add(-24 * 365 * time.Hour))
+	err := d.AddT(s, time.Now().Add(-24*365*time.Hour))
 	if err != nil {
 		return err
 	}
@@ -118,11 +119,11 @@ func (d DatabaseRRD) AddT(s string, t time.Time) error {
 	d.Open[s] = rrd.NewUpdater(dbfile)
 	err = d.Open[s].Update()
 	d.Metadata[s] = sensorMetadata{s, "unknown", "raw", "", 35.5312752, 24.0676485}
-        mutexRRD.Unlock()
-        if err != nil {
-                log.Println(err)
+	mutexRRD.Unlock()
+	if err != nil {
+		log.Println(err)
 		return errors.New("Error writing RRD")
-        }
+	}
 	return nil
 }
 
@@ -142,11 +143,11 @@ func (d DatabaseRRD) Delete(s string) {
 }
 
 func (d DatabaseRRD) List() []string {
-        var s []string
-        for key, _ := range d.Sensor {
-                s = append(s, key)
-        }
-        return s
+	var s []string
+	for key := range d.Sensor {
+		s = append(s, key)
+	}
+	return s
 }
 
 func (d DatabaseRRD) Store(s string, v string) {
@@ -155,7 +156,7 @@ func (d DatabaseRRD) Store(s string, v string) {
 
 func (d DatabaseRRD) StoreT(s string, v string, t time.Time) {
 	_, open := d.Open[s]
-	if ! open {
+	if !open {
 		dbfile := sensorDataDir + "/" + s
 		mutexRRD.Lock()
 		d.Open[s] = rrd.NewUpdater(dbfile)
@@ -168,39 +169,39 @@ func (d DatabaseRRD) StoreT(s string, v string, t time.Time) {
 	//------------------------------------------
 	//DATABASE MIGRATION, REMOVE AFTER MIGRATION
 	_, exists := d.Metadata[s]
-	if ! exists {
+	if !exists {
 		d.Metadata[s] = sensorMetadata{s, "unknown", "raw", "", -1, -1}
 	}
 	//------------------------------------------
 }
 
 func (d DatabaseRRD) Load(s string) string {
-	if ! d.helperCheckFlushBeforeRead(s) {
+	if !d.helperCheckFlushBeforeRead(s) {
 		return "oops"
 	}
 	dbfile := sensorDataDir + "/" + s
 	inf, err := rrd.Info(dbfile)
-        if err != nil {
-                log.Println(err)
-        }
+	if err != nil {
+		log.Println(err)
+	}
 	end := time.Unix(int64(inf["last_update"].(uint)), 0)
 	start := end.Add(-60 * 60 * 3 * time.Second)
-	data, err := rrd.Fetch(dbfile, "AVERAGE", start, end, time.Duration(step) * time.Second)
+	data, err := rrd.Fetch(dbfile, "AVERAGE", start, end, time.Duration(step)*time.Second)
 	defer data.FreeValues()
-        if err != nil {
-                log.Println(err)
-        }
+	if err != nil {
+		log.Println(err)
+	}
 
 	var buffer bytes.Buffer
-        row := 0
+	row := 0
 	buffer.WriteString("[")
-        for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
+	for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
 		//                for i := 0; i < len(data.DsNames); i++ {
 		v := data.ValueAt(0, row)
 		buffer.WriteString(fmt.Sprintf("[%d000, %f],", ti.Unix(), v))
 		//              }
-                row++
-        }
+		row++
+	}
 	buffer.Truncate(buffer.Len() - 1)
 	buffer.WriteString("]")
 
@@ -208,51 +209,51 @@ func (d DatabaseRRD) Load(s string) string {
 }
 
 func (d DatabaseRRD) LoadR(s string) graphPoint {
-	if ! d.helperCheckFlushBeforeRead(s) {
+	if !d.helperCheckFlushBeforeRead(s) {
 		return graphPoint{0, 0}
 	}
 	dbfile := sensorDataDir + "/" + s
 	inf, err := rrd.Info(dbfile)
-        if err != nil {
-                log.Println(err)
-        }
+	if err != nil {
+		log.Println(err)
+	}
 	end := time.Unix(int64(inf["last_update"].(uint)), 0)
 	start := end.Add(-60 * 60 * 6 * time.Second)
-	data, err := rrd.Fetch(dbfile, "AVERAGE", start, end, time.Duration(step) * time.Second)
+	data, err := rrd.Fetch(dbfile, "AVERAGE", start, end, time.Duration(step)*time.Second)
 	defer data.FreeValues()
-        if err != nil {
-                log.Println(err)
-        }
+	if err != nil {
+		log.Println(err)
+	}
 
-        row := 0
-        for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
-                row++
-        }
-	return graphPoint{end.Unix(), data.ValueAt(0, row - 1)}
+	row := 0
+	for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
+		row++
+	}
+	return graphPoint{end.Unix(), data.ValueAt(0, row-1)}
 }
 
 // Last value is last_update, so javascript can calculate max value and enable live updates.
 func (d DatabaseRRD) LoadMR(s string, st int64, en int64) []rawGraphPoint {
-	if ! d.helperCheckFlushBeforeRead(s) {
+	if !d.helperCheckFlushBeforeRead(s) {
 		return []rawGraphPoint{{"d", 0, 0}}
 	}
 	dbfile := sensorDataDir + "/" + s
 	inf, err := rrd.Info(dbfile)
-        if err != nil {
-                log.Println(err)
-        }
+	if err != nil {
+		log.Println(err)
+	}
 	//end := time.Unix(int64(inf["last_update"].(uint)), 0)
 	//start := end.Add(-60 * 60 * 12 * time.Second)
 	end := time.Unix(en, 0)
 	start := time.Unix(st, 0)
-	data, err := rrd.Fetch(dbfile, "AVERAGE", start, end, time.Duration(step/2) * time.Second)
+	data, err := rrd.Fetch(dbfile, "AVERAGE", start, end, time.Duration(step/2)*time.Second)
 	defer data.FreeValues()
-        if err != nil {
-                log.Println(err)
-        }
+	if err != nil {
+		log.Println(err)
+	}
 
 	var r []rawGraphPoint
-        row := 0
+	row := 0
 	for ti := data.Start.Add(data.Step); ti.Before(end) || ti.Equal(end); ti = ti.Add(data.Step) {
 		v := data.ValueAt(0, row)
 		if math.IsNaN(v) {
@@ -262,15 +263,15 @@ func (d DatabaseRRD) LoadMR(s string, st int64, en int64) []rawGraphPoint {
 		} else {
 			r = append(r, rawGraphPoint{"a", ti.Unix(), v})
 		}
-                row++
-        }
+		row++
+	}
 	r = append(r, rawGraphPoint{"g", int64(inf["last_update"].(uint)), 0})
 	return r
 }
 
 func (d DatabaseRRD) Exists(s string) bool {
 	_, exists := d.Sensor[s]
-	if ! exists {
+	if !exists {
 		return false
 	}
 	return true
@@ -278,11 +279,11 @@ func (d DatabaseRRD) Exists(s string) bool {
 
 func (d DatabaseRRD) Last(s string) (v string, t time.Time) {
 	// dbfile := sensorDataDir + "/" + s
-        // inf, err := rrd.Info(dbfile)
-        // if err != nil {
-        //         log.Println(err)
-        //}
-        // end := time.Unix(int64(inf["last_update"].(uint)), 0)
+	// inf, err := rrd.Info(dbfile)
+	// if err != nil {
+	//         log.Println(err)
+	//}
+	// end := time.Unix(int64(inf["last_update"].(uint)), 0)
 	return "unknown", time.Now() // TODO: return last value
 }
 
@@ -298,9 +299,8 @@ func (d DatabaseRRD) OpenCount() int {
 	return len(d.Open)
 }
 
-
 func (d DatabaseRRD) Close() {
-	for s, _ := range d.Open {
+	for s := range d.Open {
 		d.FlushDatabase(s)
 		delete(d.Open, s)
 	}
@@ -309,46 +309,46 @@ func (d DatabaseRRD) Close() {
 func (d DatabaseRRD) Graph(s string) {
 	dbfile := sensorDataDir + "/" + s
 	g := rrd.NewGrapher()
-        g.SetTitle(s)
-        g.SetVLabel("some variable")
-        g.SetSize(1600, 800)
-        g.SetWatermark("some watermark")
-        g.Def("v1", dbfile, "g", "AVERAGE")
-        g.VDef("avg1", "v1,AVERAGE")
-        g.Line(1, "v1", "ff0000", "var 1")
-        g.GPrint("avg1", "avg1=%lf")
-        g.Print("avg1", "avg1=%lf")
+	g.SetTitle(s)
+	g.SetVLabel("some variable")
+	g.SetSize(1600, 800)
+	g.SetWatermark("some watermark")
+	g.Def("v1", dbfile, "g", "AVERAGE")
+	g.VDef("avg1", "v1,AVERAGE")
+	g.Line(1, "v1", "ff0000", "var 1")
+	g.GPrint("avg1", "avg1=%lf")
+	g.Print("avg1", "avg1=%lf")
 
-        now := time.Now()
+	now := time.Now()
 
-        _, err := g.SaveGraph(serverRootDir + "/assets/temp/" + s + ".png", now.Add(-3600*time.Second), now)
-        if err != nil {
-                log.Println(err)
-        }
+	_, err := g.SaveGraph(serverRootDir+"/assets/temp/"+s+".png", now.Add(-3600*time.Second), now)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func (d DatabaseRRD) FlushDatabases() {
-        ticker := time.NewTicker(time.Duration(flushPeriod) * time.Second)
-        quit := make(chan struct{})
-        go func() {
-                for {
-                        select {
-                        case <- ticker.C:
-                                for s, _ := range d.Open {
-                                        d.FlushDatabase(s)
-                                }
+	ticker := time.NewTicker(time.Duration(flushPeriod) * time.Second)
+	quit := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				for s := range d.Open {
+					d.FlushDatabase(s)
+				}
 				dbs, _ := json.Marshal(d)
 				err := ioutil.WriteFile(database, dbs, 0600)
 				if err != nil {
 					log.Println("Error saving database info.")
 				}
 
-                        case <- quit:
-                                ticker.Stop()
-                                return
-                        }
-                }
-        }()
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }
 
 func (d DatabaseRRD) FlushDatabase(s string) {
@@ -364,9 +364,9 @@ func (d DatabaseRRD) FlushDatabase(s string) {
 
 // Old database implementation, in memory
 type sensorlog struct {
-	Data []string
+	Data      []string
 	Timestamp []time.Time
-	Info map[string] string
+	Info      map[string]string
 }
 
 type Database struct {
@@ -394,7 +394,7 @@ func (d Database) Delete(s string) {
 
 func (d Database) List() []string {
 	var s []string
-	for key, _ := range d.Db {
+	for key := range d.Db {
 		s = append(s, key)
 	}
 	return s
@@ -436,5 +436,5 @@ func (d Database) Last(s string) (string, time.Time) {
 func (d Database) Close() {
 }
 
-func (d Database) Graph(){
+func (d Database) Graph() {
 }

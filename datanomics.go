@@ -1,87 +1,87 @@
 package main
 
 import (
-	"net/http"
-	"log"
+	"code.google.com/p/go.net/websocket"
+	"encoding/json"
 	"flag"
+	"github.com/bradrydzewski/go.auth"
+	"github.com/ziutek/rrd"
+	"html/template"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
-	"time"
-	"html/template"
-	"encoding/json"
 	"runtime/pprof"
-	"code.google.com/p/go.net/websocket"
-	"io/ioutil"
-	"os/signal"
 	"syscall"
-	"github.com/ziutek/rrd"
-	"github.com/bradrydzewski/go.auth"
+	"time"
 )
 
-var version = "Datanomics 591e50f+"
+var version = "Datanomics c7cee55+"
 
 var (
-	serverRootDir string
-	port string
-	address string
-	verbose bool
-	database string
-	userDatabase string
-	sensorDataDir string
-	configFile string
-	scPort string
-	remoteServers []string
+	serverRootDir   string
+	port            string
+	address         string
+	verbose         bool
+	database        string
+	userDatabase    string
+	sensorDataDir   string
+	configFile      string
+	scPort          string
+	remoteServers   []string
 	googleAccessKey string
 	googleSecretKey string
-	googleRedirect string
+	googleRedirect  string
 	githubAccessKey string
 	githubSecretKey string
 )
 
 type configVars struct {
-	ServerRootDir string
-	Port string
-	Address string
-	Verbose bool
-	Database string
-	UserDatabase string
-	SensorDataDir string
-	ScPort string
-	RemoteServers []string
-	FlushPeriod int
+	ServerRootDir    string
+	Port             string
+	Address          string
+	Verbose          bool
+	Database         string
+	UserDatabase     string
+	SensorDataDir    string
+	ScPort           string
+	RemoteServers    []string
+	FlushPeriod      int
 	SendRemotePeriod int
-	GoogleAccessKey string
-	GoogleSecretKey string
-	GoogleRedirect string
-	GithubAccessKey string
-	GithubSecretKey string
+	GoogleAccessKey  string
+	GoogleSecretKey  string
+	GoogleRedirect   string
+	GithubAccessKey  string
+	GithubSecretKey  string
 }
 
 var (
-	d Query
-	h Hub
-	sh SensorHub
+	d   Query
+	h   Hub
+	sh  SensorHub
 	srC SendReadingsCache
 	udb Users
 )
 
-var flushPeriod = 300 // seconds
+var flushPeriod = 300     // seconds
 var sendRemotePeriod = 10 // seconds
 
 func init() {
 	flag.StringVar(&serverRootDir, "root", "current directory", "webroot directory")
-	flag.StringVar(&serverRootDir, "d", "current directory", "webroot directory" + " (shorthand)")
-	flag.StringVar(&port,"port", "8080", "listen port")
-	flag.StringVar(&port,"p", "8080", "listen port" + " (shorthand)")
+	flag.StringVar(&serverRootDir, "d", "current directory", "webroot directory"+" (shorthand)")
+	flag.StringVar(&port, "port", "8080", "listen port")
+	flag.StringVar(&port, "p", "8080", "listen port"+" (shorthand)")
 	flag.StringVar(&address, "address", "*", "listen address")
-	flag.StringVar(&address, "l", "*", "listen address" + " (shorthand)")
+	flag.StringVar(&address, "l", "*", "listen address"+" (shorthand)")
 	flag.BoolVar(&verbose, "verbose", false, "be verbose")
-	flag.BoolVar(&verbose, "v", false, "be verbose" + " (shorthand)")
+	flag.BoolVar(&verbose, "v", false, "be verbose"+" (shorthand)")
 	flag.StringVar(&database, "database", "db.json", "database file")
 	flag.StringVar(&userDatabase, "usersdb", "usersdb.json", "users database file")
 	flag.StringVar(&sensorDataDir, "storage", "sensors", "directory to store sensor data")
-	flag.StringVar(&sensorDataDir, "s", "sensors", "directory to store sensor data" + " (shorthand)")
+	flag.StringVar(&sensorDataDir, "s", "sensors", "directory to store sensor data"+" (shorthand)")
 	flag.StringVar(&configFile, "config", "", "configuration file")
 	flag.StringVar(&scPort, "scport", "12127", "port to listen for remote readings")
 
@@ -101,7 +101,7 @@ func debug(s string) {
 
 func debugln(v ...interface{}) {
 	if verbose {
-		log.Println(v ...)
+		log.Println(v...)
 	}
 }
 
@@ -114,7 +114,7 @@ var validStats = regexp.MustCompile("^/_stats/?$")
 var validLogin = regexp.MustCompile("^/login/?$")
 var validLogged = regexp.MustCompile("^/login/success/?$")
 
-func makeHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regexp) http.HandlerFunc {
+func makeHandler(fn func(http.ResponseWriter, *http.Request), rexp regexp.Regexp) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := rexp.FindStringSubmatch(r.URL.Path)
 		logRequest(r)
@@ -128,7 +128,7 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regex
 	}
 }
 
-func makeSecureHandler(fn func (http.ResponseWriter, *http.Request, auth.User), rexp regexp.Regexp) auth.SecureHandlerFunc {
+func makeSecureHandler(fn func(http.ResponseWriter, *http.Request, auth.User), rexp regexp.Regexp) auth.SecureHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, u auth.User) {
 		m := rexp.FindStringSubmatch(r.URL.Path)
 		logRequest(r)
@@ -142,7 +142,7 @@ func makeSecureHandler(fn func (http.ResponseWriter, *http.Request, auth.User), 
 	}
 }
 
-func makeNoLogHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.Regexp) http.HandlerFunc {
+func makeNoLogHandler(fn func(http.ResponseWriter, *http.Request), rexp regexp.Regexp) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := rexp.FindStringSubmatch(r.URL.Path)
 		w.Header().Add("Server", version)
@@ -156,13 +156,13 @@ func makeNoLogHandler(fn func (http.ResponseWriter, *http.Request), rexp regexp.
 }
 
 func loadTemplates() {
-	templates = template.Must(template.ParseFiles(serverRootDir + "/templates/header.html",
-		serverRootDir + "/templates/menu.html",
-		serverRootDir + "/templates/footer.html",
-		serverRootDir + "/templates/home.html",
-		serverRootDir + "/templates/sensor.html",
-		serverRootDir + "/templates/login.html",
-		serverRootDir + "/templates/404.html"))
+	templates = template.Must(template.ParseFiles(serverRootDir+"/templates/header.html",
+		serverRootDir+"/templates/menu.html",
+		serverRootDir+"/templates/footer.html",
+		serverRootDir+"/templates/home.html",
+		serverRootDir+"/templates/sensor.html",
+		serverRootDir+"/templates/login.html",
+		serverRootDir+"/templates/404.html"))
 }
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -171,7 +171,7 @@ func main() {
 	flag.Parse()
 	var err error
 	if serverRootDir == "current directory" {
-		serverRootDir, err =  filepath.Abs(filepath.Dir(os.Args[0]))
+		serverRootDir, err = filepath.Abs(filepath.Dir(os.Args[0]))
 	} else {
 		serverRootDir, err = filepath.Abs(filepath.Dir(serverRootDir))
 	}
@@ -180,7 +180,7 @@ func main() {
 	}
 
 	if sensorDataDir == "sensors" {
-		sensorDataDir, err =  filepath.Abs(filepath.Dir(os.Args[0] + "/sensors"))
+		sensorDataDir, err = filepath.Abs(filepath.Dir(os.Args[0] + "/sensors"))
 	} else {
 		sensorDataDir, err = filepath.Abs(filepath.Dir(sensorDataDir))
 	}
@@ -301,7 +301,7 @@ func main() {
 	http.HandleFunc("/log/", logHandler)
 	http.HandleFunc("/q/", makeHandler(queryHandler, *validQuery))
 	http.HandleFunc("/iq/", makeHandler(queryInfoHandler, *validInfoQuery))
-	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(serverRootDir + "/assets"))))
+	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(serverRootDir+"/assets"))))
 	http.HandleFunc("/reload/", reloadHandler)
 	http.Handle("/_hometicker", websocket.Handler(homeTickerHandler))
 	http.Handle("/_sensorticker", websocket.Handler(sensorTickerHandler))
@@ -314,16 +314,16 @@ func main() {
 
 	log.Print("Starting webserver. Listening on " + address + ":" + port)
 	log.Print("Webroot set to \"" + serverRootDir + "\".")
-	err = http.ListenAndServe(address + ":" + port, nil)
+	err = http.ListenAndServe(address+":"+port, nil)
 	if err != nil {
 		log.Fatal("Couldn't start server. ListenAndServe: ", err)
 	}
 }
 
 func cleanup() {
-        ch := make(chan os.Signal)
-        signal.Notify(ch, syscall.SIGINT)
-        <-ch
+	ch := make(chan os.Signal)
+	signal.Notify(ch, syscall.SIGINT)
+	<-ch
 	log.Println("Writing database to disk.")
 	d.Close()
 	dbs, _ := json.Marshal(d)

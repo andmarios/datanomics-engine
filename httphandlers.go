@@ -1,19 +1,19 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
-	"net/http"
-	"log"
-	"time"
-	"html/template"
-	"encoding/json"
 	"bytes"
-	"os"
+	"encoding/json"
+	"fmt"
 	"github.com/bradrydzewski/go.auth"
-	"io/ioutil"
-	"regexp"
 	"github.com/nu7hatch/gouuid"
+	"html/template"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"regexp"
+	"strconv"
+	"time"
 )
 
 var templates *template.Template
@@ -32,20 +32,20 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		if m[4] == "t" {
 			tnew = time.Unix(t, 0)
 		} else { // m[4] == "s"
-			tnew = time.Unix(time.Now().Unix() - t, 0)
+			tnew = time.Unix(time.Now().Unix()-t, 0)
 		}
 	}
 	// From down here there is a bit of duplication with sendRemoteReading(). Remember to change both if needed.
-	if ! d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
+	if !d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
 		h.Pipe <- Hometicker{"Unknown sensor: " + m[1], "fa-times-circle", "danger",
 			"Sensor <em>" + m[1] + "</em> isn't registered. Ignored."}
 		// h.Pipe <- Hometicker{"New sensor: " + m[1], "fa-check-circle", "success",
 		//	"Sensor <em>" + m[1] + "</em> succesfully added."}
-		 d.AddT(m[1], tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
+		d.AddT(m[1], tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
 		// sensorList()
 		// latlonList()
 		//http.Error(w, "Sensor not found", http.StatusNotFound)
-                //return
+		//return
 	}
 	// We can't check this with rrd cache. We do it though on database flush.
 	// _, told := d.Last(m[1])
@@ -67,14 +67,14 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 
 func queryHandler(w http.ResponseWriter, r *http.Request) {
 	m := validQuery.FindStringSubmatch(r.URL.Path)
-        if len(m) == 0 {
-                http.Error(w, "Sensor not found", http.StatusNotFound)
-                return
-        }
-	if ! d.Exists(m[1]) {
+	if len(m) == 0 {
 		http.Error(w, "Sensor not found", http.StatusNotFound)
-                return
-        }
+		return
+	}
+	if !d.Exists(m[1]) {
+		http.Error(w, "Sensor not found", http.StatusNotFound)
+		return
+	}
 	debugln("Query for sensor " + m[1])
 	a, _ := json.Marshal(d.Load(m[1]))
 	fmt.Fprintf(w, string(a))
@@ -102,11 +102,11 @@ func sensorList() { // When we add/remove sensors manually, make this run once a
 }
 
 type HomePage struct {
-	Title string
-        LoginInfo template.HTML
-	SensorList template.HTML
+	Title        string
+	LoginInfo    template.HTML
+	SensorList   template.HTML
 	CustomScript template.HTML
-	LatLonList template.JS
+	LatLonList   template.JS
 }
 
 const homeCustomScript = template.HTML(`
@@ -128,7 +128,7 @@ const homeCustomScript = template.HTML(`
 func userMenu(u auth.User) template.HTML {
 	if u != nil {
 		return template.HTML(`
-            <li><a id="username" href="` + u.Link() + `"><img class="img-rounded" height="50px" src="`+ u.Picture() +`" /> ` + u.Name() + `</a></li>
+            <li><a id="username" href="` + u.Link() + `"><img class="img-rounded" height="50px" src="` + u.Picture() + `" /> ` + u.Name() + `</a></li>
             <li class="divider"></li>
             <li><a href="/logout"><i class="fa fa-sign-out fa-fw"></i> Logout</a></li>
 `)
@@ -155,7 +155,7 @@ func latlonList() {
 	buffer.WriteString("var Locs = [")
 	for _, s := range d.List() {
 		v := d.Info(s)
-		buffer.WriteString("{lat:"+ strconv.FormatFloat(v.Lat, 'f', -1, 64) + ", lon:" + strconv.FormatFloat(v.Lon, 'f', -1, 64) + ", title:'" + v.Name + "'},")
+		buffer.WriteString("{lat:" + strconv.FormatFloat(v.Lat, 'f', -1, 64) + ", lon:" + strconv.FormatFloat(v.Lon, 'f', -1, 64) + ", title:'" + v.Name + "'},")
 	}
 	buffer.Truncate(buffer.Len() - 1)
 	buffer.WriteString("];")
@@ -163,11 +163,11 @@ func latlonList() {
 }
 
 type ViewPage struct {
-	Title string
-	LoginInfo template.HTML
-	Sensor string
-	Data template.JS
-	SensorList template.HTML
+	Title        string
+	LoginInfo    template.HTML
+	Sensor       string
+	Data         template.JS
+	SensorList   template.HTML
 	CustomScript template.HTML
 }
 
@@ -185,7 +185,7 @@ const viewCustomScript = template.HTML(`    <!--[if lte IE 8]><script src="js/ex
 
 func viewHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 	m := validView.FindStringSubmatch(r.URL.Path)
-        if ! d.Exists(m[1]) {
+	if !d.Exists(m[1]) {
 		err := templates.ExecuteTemplate(w,
 			"sensor.html",
 			ViewPage{"Datanomics™ alpha | Sensor not found", userMenu(u), "Error", "Sensor not found", SensorList, viewCustomScript})
@@ -199,24 +199,24 @@ func viewHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 		s += "; var sensorID = '" + m[1] + "';"
 		n := d.Info(m[1]).Name
 		err := templates.ExecuteTemplate(w,
-                        "sensor.html",
-                        ViewPage{"Datanomics™ alpha | " + n, userMenu(u), n, template.JS(s), SensorList, viewCustomScript})
-                if err != nil {
-                        http.Error(w, err.Error(), http.StatusInternalServerError)
+			"sensor.html",
+			ViewPage{"Datanomics™ alpha | " + n, userMenu(u), n, template.JS(s), SensorList, viewCustomScript})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 }
 
 func queryInfoHandler(w http.ResponseWriter, r *http.Request) {
 	m := validInfoQuery.FindStringSubmatch(r.URL.Path)
-        if len(m) == 0 {
-                http.Error(w, "Sensor not found", http.StatusNotFound)
-                return
-        }
-	if ! d.Exists(m[1]) {
+	if len(m) == 0 {
 		http.Error(w, "Sensor not found", http.StatusNotFound)
-                return
-        }
+		return
+	}
+	if !d.Exists(m[1]) {
+		http.Error(w, "Sensor not found", http.StatusNotFound)
+		return
+	}
 	debugln("Query for sensor " + m[1])
 	t := d.Info(m[1])
 	tt, _ := udb.Info(t.Owner)
@@ -225,12 +225,12 @@ func queryInfoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type ServerStats struct {
-	Sensors int
-	OpenSensors int
-	RemoteServers []string
-	WebsocketClientsHome int
+	Sensors                 int
+	OpenSensors             int
+	RemoteServers           []string
+	WebsocketClientsHome    int
 	WebsocketClientsSensors int
-	DatabaseSize int64
+	DatabaseSize            int64
 }
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
@@ -269,7 +269,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func userLoggedHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
-	if ! udb.Exists(u.Id()) {
+	if !udb.Exists(u.Id()) {
 		_ = udb.Add(User{u.Id(), u.Name(), u.Picture(), u.Email(), u.Link()})
 		log.Println("Added new user: " + u.Id())
 	}
@@ -282,9 +282,9 @@ func userLoggedHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 }
 
 type serve404Page struct {
-        Title string
-        LoginInfo template.HTML
-	SensorList template.HTML
+	Title        string
+	LoginInfo    template.HTML
+	SensorList   template.HTML
 	CustomScript template.JS
 }
 
@@ -292,10 +292,10 @@ func serve404(w http.ResponseWriter, u auth.User) {
 	w.WriteHeader(http.StatusNotFound)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	err := templates.ExecuteTemplate(w, "404.html", serve404Page{"Datanomics™ alpha | Page not found", userMenu(u), SensorList, template.JS("")})
-        if err != nil {
-                http.Error(w, err.Error(), http.StatusInternalServerError)
-                log.Println(err)
-        }
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Println(err)
+	}
 }
 
 func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
@@ -315,7 +315,7 @@ func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 
 	matched, _ := regexp.Compile("^[a-zA-Z0-9\\s-]+$")
 	name := ""
-	if ! matched.MatchString(r.FormValue("fsenName")) {
+	if !matched.MatchString(r.FormValue("fsenName")) {
 		accepted = false
 		problems += "<li>name is wrong</li>"
 	} else {
@@ -326,7 +326,7 @@ func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 	if err != nil {
 		accepted = false
 		problems += "<li>latitude is wrong</li>"
-	} else	if lat > 90 || lat < -90 {
+	} else if lat > 90 || lat < -90 {
 		accepted = false
 		problems += "<li>latitude is wrong</li>"
 	}
@@ -358,16 +358,16 @@ func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 	suuid, err := uuid.NewV4()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-                log.Println(err)
-        }
+		log.Println(err)
+	}
 
-	if ! accepted {
+	if !accepted {
 		fmt.Fprintf(w, `
          <div class="alert alert-danger fade in">
            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
            <h4>Sensor not added</h4>
            <p>We couldn't add your sensor. Here is a list of what went wrong:
-           <ul>` + problems + `</ul>
+           <ul>`+problems+`</ul>
            </p>
          </div>`)
 		return
@@ -387,8 +387,8 @@ func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
          <div class="alert alert-success fade in">
            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
            <h4>Sensor added</h4>
-           <p>You can find your new sensor page <a href="/view/` + suuid.String() + `/">here</a>. </p>
-           <p>You can send readings from your sensor to: <pre>http://datanomics.andmarios.com/log/` + suuid.String() + `</pre>. </p>
+           <p>You can find your new sensor page <a href="/view/`+suuid.String()+`/">here</a>. </p>
+           <p>You can send readings from your sensor to: <pre>http://datanomics.andmarios.com/log/`+suuid.String()+`</pre>. </p>
          </div>`)
 		}
 		log.Println("New sensor added: " + suuid.String())
@@ -403,7 +403,6 @@ func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 //         CustomScript template.JS
 // }
 
-
 // func serve500(w http.ResponseWriter, u auth.User) {
 // 	w.WriteHeader(http.StatusInternalServerError)
 // 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -413,11 +412,3 @@ func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 //                 log.Println(err)
 //         }
 //
-
-
-
-
-
-
-
-

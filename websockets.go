@@ -1,40 +1,39 @@
 package main
 
 import (
-        "code.google.com/p/go.net/websocket"
-	"time"
+	"code.google.com/p/go.net/websocket"
 	"log"
-//	"encoding/json"
-//	"regexp"
+	"time"
+	//	"encoding/json"
+	//	"regexp"
 )
 
 type Hub struct {
 	Connections map[*Socket]bool
-	Pipe chan Hometicker
+	Pipe        chan Hometicker
 }
 
 type Hometicker struct {
-        Title string
-        Icon string
-        Color string
-        Message string
+	Title   string
+	Icon    string
+	Color   string
+	Message string
 }
 
 type SensorHub struct {
 	Connections map[string]map[*Socket]bool
-	Pipe chan string
+	Pipe        chan string
 }
 
 type Sensorticker struct {
 	Sensor string
 }
 
-
 func (h *Hub) Broadcast() {
 	for {
 		select {
 		case str := <-h.Pipe:
-			for s, _ := range h.Connections {
+			for s := range h.Connections {
 				err := websocket.JSON.Send(s.Ws, str)
 				if err != nil {
 					s.Ws.Close()
@@ -64,7 +63,7 @@ func (h *SensorHub) Broadcast() {
 					m.C = "u"
 					m.T = v.Time
 					m.V = v.Value
-					for s, _ := range h.Connections[str] {
+					for s := range h.Connections[str] {
 						err := websocket.JSON.Send(s.Ws, m)
 						if err != nil {
 							s.Ws.Close()
@@ -96,20 +95,20 @@ func (s *Socket) ReceiveMessage() {
 }
 
 type incomingMsg struct {
-	Type string
+	Type   string
 	Sensor string
-	Start int64
-	End int64
+	Start  int64
+	End    int64
 }
 
 func (s *Socket) ReceiveSensorMessage() {
 	for {
-//		var x []byte
+		//		var x []byte
 		var rec incomingMsg
-                err := websocket.JSON.Receive(s.Ws, &rec)
-                if err != nil {
-                        break
-                }
+		err := websocket.JSON.Receive(s.Ws, &rec)
+		if err != nil {
+			break
+		}
 		if rec.Type == "range" {
 			m := sensorMsg{"d", 0, 0}
 			err := websocket.JSON.Send(s.Ws, m)
@@ -118,20 +117,19 @@ func (s *Socket) ReceiveSensorMessage() {
 			}
 			if d.Exists(rec.Sensor) {
 				t := d.LoadMR(rec.Sensor, rec.Start, rec.End)
-				for i, _ := range t {
+				for i := range t {
 					_ = websocket.JSON.Send(s.Ws, t[i])
 				}
 			}
 		}
-        }
-        s.Ws.Close()
+	}
+	s.Ws.Close()
 }
-
 
 var htj = Hometicker{"Welcome", "fa-thumbs-up", "primary", "Connected to datanomics."}
 
 func homeTickerHandler(ws *websocket.Conn) {
-//        fmt.Fprintf(ws, "hello")
+	//        fmt.Fprintf(ws, "hello")
 	h.Pipe <- Hometicker{"Client Connected", "fa-smile-o", "warning", "Address " + string(ws.Request().RemoteAddr) + " joined the party."}
 	time.Sleep(100 * time.Millisecond) // This way the new client won't receive the message above (which is async, so it is delayed a bit).
 	s := &Socket{ws}
@@ -143,17 +141,17 @@ func homeTickerHandler(ws *websocket.Conn) {
 
 func sensorTickerHandler(ws *websocket.Conn) {
 	//        fmt.Fprintf(ws, "hello")
-        h.Pipe <- Hometicker{"Client Connected", "fa-smile-o", "warning", "Address " + string(ws.Request().RemoteAddr) + " started monitoring a sensor."}
+	h.Pipe <- Hometicker{"Client Connected", "fa-smile-o", "warning", "Address " + string(ws.Request().RemoteAddr) + " started monitoring a sensor."}
 	s := &Socket{ws}
 
-	var  x string
+	var x string
 	err := websocket.Message.Receive(s.Ws, &x)
 	if err != nil {
 		log.Println(err)
 	}
 	if d.Exists(x) {
 		_, exists := sh.Connections[x]
-		if ! exists {
+		if !exists {
 			t := make(map[*Socket]bool)
 			sh.Connections[x] = t
 		}
@@ -162,7 +160,6 @@ func sensorTickerHandler(ws *websocket.Conn) {
 		debug(string(ws.Request().RemoteAddr) + " connected to sensorticker websocket")
 	}
 }
-
 
 // var validSensorWS = regexp.MustCompile("^/sws/([a-zA-Z0-9-]+)/?$")
 
@@ -178,22 +175,3 @@ func sensorTickerHandler(ws *websocket.Conn) {
 // 	}
 // 	s := &Socket{ws}
 // }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

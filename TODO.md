@@ -14,6 +14,7 @@
 - /iq/<sensor> leaks private data. Needs a change in implementation.
 - **DEMO** Binary Log of requests to re-play in case of db loss.
 - **DEMO** Log from POST.
+- _BUG_ Escape strings in units, name and sensor info. For example a % in sensor info breaks javascript.
 
 # For OpenSourcing
 

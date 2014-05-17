@@ -7,16 +7,16 @@ import (
 type Users interface {
 	Add(User) error
 	Delete(string) error
- 	Exists(string) bool
+	Exists(string) bool
 	Info(string) (User, error)
 }
 
 type User struct {
-	Id string
-	Name string
+	Id     string
+	Name   string
 	Avatar string
-	Email string
-	Link string
+	Email  string
+	Link   string
 }
 
 // For now Uid == Id
@@ -35,10 +35,10 @@ func (udb UserDB) Add(u User) error {
 
 func (udb UserDB) Delete(id string) error {
 	_, exists := udb.Uid[id]
-        if exists {
-                return errors.New("Could not delete user: not found in database.")
-        }
-        delete(udb.Uid, id)
+	if exists {
+		return errors.New("Could not delete user: not found in database.")
+	}
+	delete(udb.Uid, id)
 	return nil
 }
 
@@ -48,18 +48,8 @@ func (udb UserDB) Exists(id string) (exists bool) {
 }
 
 func (udb UserDB) Info(id string) (User, error) {
-	if ! udb.Exists(id) {
+	if !udb.Exists(id) {
 		return User{"", "", "", "", ""}, errors.New("Could not find user in database.")
 	}
 	return udb.Uid[id], nil
 }
-
-
-
-
-
-
-
-
-
-
