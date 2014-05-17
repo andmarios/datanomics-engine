@@ -79,7 +79,7 @@ func init() {
 	flag.BoolVar(&verbose, "verbose", false, "be verbose")
 	flag.BoolVar(&verbose, "v", false, "be verbose" + " (shorthand)")
 	flag.StringVar(&database, "database", "db.json", "database file")
-	flag.StringVar(&userDatabase, "users' database", "usersdb.json", "database file")
+	flag.StringVar(&userDatabase, "usersdb", "usersdb.json", "users database file")
 	flag.StringVar(&sensorDataDir, "storage", "sensors", "directory to store sensor data")
 	flag.StringVar(&sensorDataDir, "s", "sensors", "directory to store sensor data" + " (shorthand)")
 	flag.StringVar(&configFile, "config", "", "configuration file")

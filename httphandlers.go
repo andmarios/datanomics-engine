@@ -41,11 +41,11 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 			"Sensor <em>" + m[1] + "</em> isn't registered. Ignored."}
 		// h.Pipe <- Hometicker{"New sensor: " + m[1], "fa-check-circle", "success",
 		//	"Sensor <em>" + m[1] + "</em> succesfully added."}
-		// d.AddT(m[1], tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
+		 d.AddT(m[1], tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
 		// sensorList()
 		// latlonList()
-		http.Error(w, "Sensor not found", http.StatusNotFound)
-                return
+		//http.Error(w, "Sensor not found", http.StatusNotFound)
+                //return
 	}
 	// We can't check this with rrd cache. We do it though on database flush.
 	// _, told := d.Last(m[1])
@@ -343,6 +343,9 @@ func addSensorHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
 	units := "raw"
 	if r.FormValue("fsenUnits") != "" {
 		units = r.FormValue("fsenUnits")
+	}
+	if units == "%" { // TODO: extent this to search anywhere in units for percent symbol
+		units = "\u0026#37;"
 	}
 
 	info := r.FormValue("fsenInfo")
