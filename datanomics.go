@@ -40,6 +40,8 @@ var (
 	githubSecretKey string
 )
 
+const RemoteBuffer = 1000000 /* size of remote readings channel buffer */
+
 type configVars struct {
 	ServerRootDir    string
 	Port             string
@@ -290,7 +292,7 @@ func main() {
 	go sh.Broadcast()
 
 	srC.Readings = make([]remoteReading, 0, 10)
-	srC.Pipe = make(chan remoteReading)
+	srC.Pipe = make(chan remoteReading, RemoteBuffer)
 	go srC.SendReadingsCron()
 
 	j.Entries = make([]string, 0, 0)

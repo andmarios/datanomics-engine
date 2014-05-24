@@ -2,7 +2,7 @@
 
 - _Accept sensor values only in historical order._
 - _Home page show live updates_
-
+- **HUGE BUG** _TEMP FIXED_ When we can't send to remote server, logging halts because we used a synchronous channel. I set the channel buffer to 1000000 instead of 1 to prevent temporarily this.
 
 # For production
 
@@ -15,6 +15,7 @@
 - **DEMO** Binary Log of requests to re-play in case of db loss.
 - **DEMO** Log from POST.
 - _BUG_ Escape strings in units, name and sensor info. For example a % in sensor info breaks javascript.
+- Instead of UUID use a 10-12 character [a-zA-Z0-9] identifier. First two characters keep the same, they may act as routing in the feature.
 
 # For OpenSourcing
 
