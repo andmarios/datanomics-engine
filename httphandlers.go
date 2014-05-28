@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/bradrydzewski/go.auth"
 	"github.com/nu7hatch/gouuid"
@@ -21,50 +22,88 @@ var homeTemplate *template.Template
 
 func logHandler(w http.ResponseWriter, r *http.Request) {
 	m := validLog.FindStringSubmatch(r.URL.Path)
-	if len(m) == 0 {
-		http.Error(w, "Sensor not found", http.StatusNotFound)
+	var err error
+
+	if r.Method == "POST" { /* process POST request */
+		if len(m) == 0 || m[2] != "" {
+			http.Error(w, "Sensor not found", http.StatusNotFound)
+			log.Println(len(m))
+			log.Println(m)
+			return
+		}
+		errf := r.ParseForm()
+		if errf != nil {
+			http.Error(w, errf.Error(), http.StatusInternalServerError)
+			log.Println(errf)
+			return
+		}
+		chid, _ := regexp.Compile("^[a-zA-Z0-9-]+$")
+		chnum, _ := regexp.Compile("^-?[0-9]+[.]{0,1}[0-9]*$")
+		chtyp, _ := regexp.Compile("^[ts]$")
+		chtim, _ := regexp.Compile("^[0-9]+$")
+
+		if !chid.MatchString(r.FormValue("id")) || !chnum.MatchString(r.FormValue("val")) {
+			http.Error(w, "Sensor not found", http.StatusInternalServerError)
+			log.Println(err)
+			return
+		}
+		if chtyp.MatchString(r.FormValue("f")) && chtim.MatchString(r.FormValue("t")) {
+			err = logReading(r.FormValue("id"), r.FormValue("val"),
+				r.FormValue("f"), r.FormValue("t"))
+		} else if r.FormValue("f") == "" && r.FormValue("t") == "" {
+			err = logReading(r.FormValue("id"), r.FormValue("val"), "", "")
+		} else {
+			http.Error(w, "Sensor not found", http.StatusNotFound)
+			return
+		}
+	} else { /* process GET request */
+		if len(m) == 0 {
+			http.Error(w, "Sensor not found", http.StatusNotFound)
+			return
+		}
+		err = logReading(m[2], m[3], m[5], m[6])
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	debug("Sensor " + m[1] + " sent value " + m[2])
+	fmt.Fprintf(w, "ok")
+}
+
+func logReading(sen string, val string, typ string, tim string) error {
+	/* next 3 are not needed because they happen with the regexp */
+	//	if sen == "" {return errors.New("Sensor not found")}
+	//	if val == "" {return errors.New("Invalid value")}
+	//	if typ != "" && tim == "" {return errors.New("Missing time field")}
+
 	tnew := time.Now()
-	if m[4] != "" {
-		t, _ := strconv.ParseInt(m[5], 10, 64)
-		if m[4] == "t" {
+	if typ != "" {
+		t, _ := strconv.ParseInt(tim, 10, 64)
+		if typ == "t" {
 			tnew = time.Unix(t, 0)
 		} else { // m[4] == "s"
 			tnew = time.Unix(time.Now().Unix()-t, 0)
 		}
 	}
 	// From down here there is a bit of duplication with sendRemoteReading(). Remember to change both if needed.
-	if !d.Exists(m[1]) { // Remove when you add code to add/delete sensors instead of adding them automatically.
-		h.Pipe <- Hometicker{"Unknown sensor: " + m[1], "fa-times-circle", "danger",
-			"Sensor <em>" + m[1] + "</em> isn't registered. Ignored."}
-		// h.Pipe <- Hometicker{"New sensor: " + m[1], "fa-check-circle", "success",
-		//	"Sensor <em>" + m[1] + "</em> succesfully added."}
+	if !d.Exists(sen) { // Remove when you add code to add/delete sensors instead of adding them automatically.
+		h.Pipe <- Hometicker{"Unknown sensor: " + sen, "fa-times-circle", "danger",
+			"Sensor <em>" + sen + "</em> isn't registered. Ignored."}
 		// For Benchmark puproses uncooment the next line and comment the http.Error and return lines below.
-		// d.AddT(m[1], tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
+		// d.AddT(sen, tnew) // This is not needed. Sensors are added automatically upon first reading. It is here only to make the next command to work.
 		//sensorList()
 		//latlonList()
-		http.Error(w, "Sensor not found", http.StatusNotFound)
-		return
+		return errors.New("Sensor not found")
 	}
-	// We can't check this with rrd cache. We do it though on database flush.
-	// _, told := d.Last(m[1])
-	// if ! tnew.After(told) {
-	// 	http.Error(w, "Sensor send out of order timestamp", http.StatusNotFound)
-	// 	h.Pipe <- Hometicker{m[1] + ": out of order reading", "fa-times-circle", "danger",
-	// 		m[1] + "</em> sent out of order value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>. Ignored."}
-	// 	return
-	// }
-
-	d.StoreT(m[1], m[2], tnew)
-	srC.Pipe <- remoteReading{m[1], m[2], tnew}
-	j.Pipe <- m[1] + "/" + m[2] + "/t/" + strconv.FormatInt(tnew.Unix(), 10)
-	t := d.Info(m[1]).Name
-	h.Pipe <- Hometicker{"<a href='/view/" + m[1] + "'>" + t + "</a>: new reading", "fa-plus-circle", "info",
-		t + "</em> sent value <em>" + m[2] + "</em> at <em>" + tnew.String() + "</em>"}
-	sh.Pipe <- m[1]
-	fmt.Fprintf(w, "ok")
+	// We can't check if value came out of order with rrd cache. We do it though on database flush.
+	d.StoreT(sen, val, tnew)
+	srC.Pipe <- remoteReading{sen, val, tnew}
+	j.Pipe <- sen + "/" + val + "/t/" + strconv.FormatInt(tnew.Unix(), 10)
+	t := d.Info(sen).Name
+	h.Pipe <- Hometicker{"<a href='/view/" + sen + "'>" + t + "</a>: new reading", "fa-plus-circle", "info",
+		t + "</em> sent value <em>" + val + "</em> at <em>" + tnew.String() + "</em>"}
+	sh.Pipe <- sen
+	return nil
 }
 
 func queryHandler(w http.ResponseWriter, r *http.Request) {

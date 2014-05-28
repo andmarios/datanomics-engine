@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-var version = "Datanomics 5a96dad+"
+var version = "Datanomics bd3b5e4+"
 
 var (
 	serverRootDir   string
@@ -111,7 +111,7 @@ func debugln(v ...interface{}) {
 	}
 }
 
-var validLog = regexp.MustCompile("^/log/([a-zA-Z0-9-]+)/(-?[0-9]+[.]{0,1}[0-9]*)(/([ts])/([0-9]+))?/?$")
+var validLog = regexp.MustCompile("^/log(/([a-zA-Z0-9-]+)/(-?[0-9]+[.]{0,1}[0-9]*)(/([ts])/([0-9]+))?)?/?$")
 var validQuery = regexp.MustCompile("^/q/([a-zA-Z0-9-]+)/?$")
 var validInfoQuery = regexp.MustCompile("^/iq/([a-zA-Z0-9-]+)/?$")
 var validRoot = regexp.MustCompile("^/$")
@@ -316,7 +316,8 @@ func main() {
 	http.Handle("/login/github", githubHandler)
 	http.Handle("/login/success", auth.SecureUser(makeSecureHandler(userLoggedHandler, *validLogged)))
 
-	http.HandleFunc("/log/", logHandler)
+	http.HandleFunc("/log", logHandler)  /* catches exact log (user for POST */
+	http.HandleFunc("/log/", logHandler) /* catches everything after log/ */
 	http.HandleFunc("/q/", makeHandler(queryHandler, *validQuery))
 	http.HandleFunc("/iq/", makeHandler(queryInfoHandler, *validInfoQuery))
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(serverRootDir+"/assets"))))

@@ -60,19 +60,25 @@ func (s *SendReadingsCache) SendReadingsCron() {
 			case r := <-s.Pipe:
 				s.Readings = append(s.Readings, r)
 			case <-ticker.C:
-				sendRemoteReading(s.Readings)
-				s.Readings = make([]remoteReading, 0, 0)
+				s.Readings = sendRemoteReading(s.Readings)
 			}
 		}
 	}()
 }
 
 // TODO: If we can send to someone, store the readings (up to a size) to try later.
-func sendRemoteReading(sra []remoteReading) {
+func sendRemoteReading(sra []remoteReading) []remoteReading {
+	srb := make([]remoteReading, 0, 0)
 	for _, rHost := range remoteServers {
 		conn, err := net.Dial("tcp", rHost)
 		if err != nil {
 			log.Println(err)
+			// TODO. If we don't find a remote server, we return the array of readings.
+			// Next time we will try to send both old and new values. If we send to more than
+			// one servers, some servers will receive the old values twice.
+			// This doesn't cause problems since these servers will ignore the old values.
+			// It just isn't optimal when there are many sensors.
+			srb = sra
 		} else {
 			encoder := gob.NewEncoder(conn)
 			rr := &sra
@@ -80,6 +86,11 @@ func sendRemoteReading(sra []remoteReading) {
 			conn.Close()
 		}
 	}
+	// TODO FIX HARDLIMIT : 100000 below should be configurable
+	if len(srb) > 100000 {
+		srb = srb[len(srb)-100000:]
+	}
+	return srb
 }
 
 // Nice code that never worked. :/
