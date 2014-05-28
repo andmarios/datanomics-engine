@@ -34,3 +34,4 @@
 - Embed graph
 - **TODO** _TEMP FIXED_ When we can't send to remote server, logging halts because we used a synchronous channel. I set the channel buffer to 1000000 instead of 1 to prevent temporarily this.
 - **TODO** sendRemoteReadings() has a hard limit on how many entries it will keep in case of timeout. Also it resends all values to all servers on failure. Something more elegant IIO.
+- a more elegan solution for robots.txt which now is part of homeHandler ?

@@ -180,6 +180,11 @@ func userMenu(u auth.User) template.HTML {
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request, u auth.User) {
+	m := validRoot.FindStringSubmatch(r.URL.Path)
+	if len(m) > 0 && len(m[1]) > 0 {
+		fmt.Fprintf(w, "User-agent: *\nDisallow: /")
+		return
+	}
 	err := templates.ExecuteTemplate(w,
 		"home.html",
 		HomePage{"Datanomics™ alpha", userMenu(u), SensorList, homeCustomScript, LatLonList})

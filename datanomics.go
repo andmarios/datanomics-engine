@@ -114,7 +114,7 @@ func debugln(v ...interface{}) {
 var validLog = regexp.MustCompile("^/log(/([a-zA-Z0-9-]+)/(-?[0-9]+[.]{0,1}[0-9]*)(/([ts])/([0-9]+))?)?/?$")
 var validQuery = regexp.MustCompile("^/q/([a-zA-Z0-9-]+)/?$")
 var validInfoQuery = regexp.MustCompile("^/iq/([a-zA-Z0-9-]+)/?$")
-var validRoot = regexp.MustCompile("^/$")
+var validRoot = regexp.MustCompile("^/(robots.txt/?)?$")
 var validView = regexp.MustCompile("^/view/([a-zA-Z0-9-]+)/?$")
 var validStats = regexp.MustCompile("^/_stats/?$")
 var validLogin = regexp.MustCompile("^/login/?$")
