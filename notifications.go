@@ -39,6 +39,9 @@ func checkSensorStatus(db *DatabaseRRD, checkPeriod int) {
 					}
 				} else if offline[s] == true {
 					delete(offline, s)
+					senMet = d.Info(s)
+					useInf, _ = udb.Info(senMet.Owner)
+					go sendSensorOnline(senMet.Name, useInf.Email)
 					log.Println(s + " back online")
 				}
 			}
@@ -49,6 +52,23 @@ func checkSensorStatus(db *DatabaseRRD, checkPeriod int) {
 func sendSensorOffline(s string, receiver string) {
 	subject := "Sensor " + s + " went offline."
 	body := "Sensor " + s + " went offline. You won't receive other notifications until it come online again."
+	server := emailServer + ":" + emailServerPort
+	log.Println("Sending email to " + receiver)
+	err := smtp.SendMail(
+		server,
+		mailAuth,
+		emailSender,
+		[]string{receiver},
+		[]byte(fmt.Sprintf("Subject: %s\r\n\r\n%s", subject, body)),
+	)
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func sendSensorOnline(s string, receiver string) {
+	subject := "Sensor " + s + " is live again."
+	body := "Sensor " + s + " came online!"
 	server := emailServer + ":" + emailServerPort
 	log.Println("Sending email to " + receiver)
 	err := smtp.SendMail(
