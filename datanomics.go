@@ -38,6 +38,11 @@ var (
 	googleRedirect  string
 	githubAccessKey string
 	githubSecretKey string
+	emailUser       string
+	emailPass       string
+	emailServer     string
+	emailSender     string
+	emailServerPort string
 )
 
 const RemoteBuffer = 1000000 /* size of remote readings channel buffer */
@@ -60,6 +65,11 @@ type configVars struct {
 	GoogleRedirect   string
 	GithubAccessKey  string
 	GithubSecretKey  string
+	EmailUser        string
+	EmailPass        string
+	EmailServer      string
+	EmailSender      string
+	EmailServerPort  string
 }
 
 var (
@@ -97,6 +107,12 @@ func init() {
 	flag.StringVar(&googleRedirect, "googlecb", "http://localhost:8080/oauth2callback", "your google redirect URI")
 	flag.StringVar(&githubAccessKey, "githubcid", "[client id]", "your github client ID")
 	flag.StringVar(&githubSecretKey, "githubcs", "[secret]", "your github client secret")
+
+	emailUser = ""
+	emailPass = ""
+	emailServer = ""
+	emailSender = ""
+	emailServerPort = "25"
 }
 
 func debug(s string) {
@@ -240,19 +256,24 @@ func main() {
 			googleRedirect = confR.GoogleRedirect
 			githubAccessKey = confR.GithubAccessKey
 			githubSecretKey = confR.GithubSecretKey
+			emailUser = confR.EmailUser
+			emailPass = confR.EmailPass
+			emailServer = confR.EmailServer
+			emailSender = confR.EmailSender
+			emailServerPort = confR.EmailServerPort
 			log.Println("Loaded configuration. Command line options will be ignored.")
 		}
 
-		confR = configVars{serverRootDir, port, address, verbose, database, userDatabase, sensorDataDir,
-			journalDir, scPort, remoteServers, flushPeriod, sendRemotePeriod, googleAccessKey,
-			googleSecretKey, googleRedirect, githubAccessKey, githubSecretKey}
-//		confJ, _ := json.Marshal(confR)
-//		err = ioutil.WriteFile(configFile, confJ, 0600)
-//		if err != nil {
-//			log.Println("Error saving config info.")
-//		} else {
-//			log.Println("Saved config file.")
-//		}
+		//		confR = configVars{serverRootDir, port, address, verbose, database, userDatabase, sensorDataDir,
+		//			journalDir, scPort, remoteServers, flushPeriod, sendRemotePeriod, googleAccessKey,
+		//			googleSecretKey, googleRedirect, githubAccessKey, githubSecretKey}
+		//		confJ, _ := json.Marshal(confR)
+		//		err = ioutil.WriteFile(configFile, confJ, 0600)
+		//		if err != nil {
+		//			log.Println("Error saving config info.")
+		//		} else {
+		//			log.Println("Saved config file.")
+		//		}
 	}
 
 	t := DatabaseRRD{make(map[string]string), make(map[string]*rrd.Updater), make(map[string]sensorMetadata)}
@@ -302,6 +323,13 @@ func main() {
 	go listenForRemoteReadings()
 
 	go cleanup()
+
+	if emailServer != "" && emailSender != "" {
+		log.Println("Emails will be sent for sensor status changes.")
+		go checkSensorStatus(&t, flushPeriod)
+	} else {
+		log.Println("Email notification system disabled.")
+	}
 
 	auth.Config.CookieSecret = []byte("82f6e00c-9053-4305-8662-aa163daca490")
 	auth.Config.LoginSuccessRedirect = "/login/success"
