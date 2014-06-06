@@ -246,13 +246,13 @@ func main() {
 		confR = configVars{serverRootDir, port, address, verbose, database, userDatabase, sensorDataDir,
 			journalDir, scPort, remoteServers, flushPeriod, sendRemotePeriod, googleAccessKey,
 			googleSecretKey, googleRedirect, githubAccessKey, githubSecretKey}
-		confJ, _ := json.Marshal(confR)
-		err = ioutil.WriteFile(configFile, confJ, 0600)
-		if err != nil {
-			log.Println("Error saving config info.")
-		} else {
-			log.Println("Saved config file.")
-		}
+//		confJ, _ := json.Marshal(confR)
+//		err = ioutil.WriteFile(configFile, confJ, 0600)
+//		if err != nil {
+//			log.Println("Error saving config info.")
+//		} else {
+//			log.Println("Saved config file.")
+//		}
 	}
 
 	t := DatabaseRRD{make(map[string]string), make(map[string]*rrd.Updater), make(map[string]sensorMetadata)}

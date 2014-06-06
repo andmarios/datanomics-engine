@@ -15,6 +15,8 @@
 - _DONE_ **DEMO** Log from POST.
 - _BUG_ Escape strings in units, name and sensor info. For example a % in sensor info breaks javascript.
 - Instead of UUID use a 10-12 character [a-zA-Z0-9] identifier. First two characters keep the same, they may act as routing in the feature.
+- Use a second UUID for logging, so that you can change it if needed (eg it leaked to bad party and user needs to change it)
+- email when a sensor hasn't send a value for a user-defined period
 
 # For OpenSourcing
 
