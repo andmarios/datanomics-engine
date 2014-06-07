@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-var version = "Datanomics bd3b5e4+"
+var version = "Datanomics ffc4e16+"
 
 var (
 	serverRootDir   string

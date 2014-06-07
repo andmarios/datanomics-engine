@@ -50,16 +50,17 @@ func checkSensorStatus(db *DatabaseRRD, checkPeriod int) {
 }
 
 func sendSensorOffline(s string, receiver string) {
+	from := "Datanomics <" + emailSender + ">"
 	subject := "Sensor " + s + " went offline."
-	body := "Sensor " + s + " went offline. You won't receive other notifications until it come online again."
+	body := "Sensor <em>" + s + "</em> went offline. You won't receive other notifications until it come online again."
 	server := emailServer + ":" + emailServerPort
 	log.Println("Sending email to " + receiver)
 	err := smtp.SendMail(
 		server,
 		mailAuth,
-		emailSender,
+		emailSender, // This does nothing due to mailAuth
 		[]string{receiver},
-		[]byte(fmt.Sprintf("Subject: %s\r\n\r\n%s", subject, body)),
+		[]byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-version: 1.0\r\nContent-Type: text/html; charset=\"UTF-8\"\r\n\r\n%s", from, receiver, subject, body)),
 	)
 	if err != nil {
 		log.Println(err)
@@ -67,16 +68,17 @@ func sendSensorOffline(s string, receiver string) {
 }
 
 func sendSensorOnline(s string, receiver string) {
+	from := "Datanomics <" + emailSender + ">"
 	subject := "Sensor " + s + " is live again."
-	body := "Sensor " + s + " came online!"
+	body := "Sensor <em>" + s + "</em> came online!"
 	server := emailServer + ":" + emailServerPort
 	log.Println("Sending email to " + receiver)
 	err := smtp.SendMail(
 		server,
-		mailAuth,
+		mailAuth, // This does nothing due to mailAuth
 		emailSender,
 		[]string{receiver},
-		[]byte(fmt.Sprintf("Subject: %s\r\n\r\n%s", subject, body)),
+		[]byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-version: 1.0\r\nContent-Type: text/html; charset=\"UTF-8\"\r\n\r\n%s", from, receiver, subject, body)),
 	)
 	if err != nil {
 		log.Println(err)
