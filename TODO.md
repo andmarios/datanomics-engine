@@ -17,7 +17,7 @@
 - Instead of UUID use a 10-12 character [a-zA-Z0-9] identifier. First two characters keep the same, they may act as routing in the feature.
 - Use a second UUID for logging, so that you can change it if needed (eg it leaked to bad party and user needs to change it)
 - _DONE_ email when a sensor hasn't send a value for a user-defined period
-
+- **IMPORTANT** maps aren't concurrency safe, check if I always use mutex (maybe -race?)
 # For OpenSourcing
 
 - Google Client Keys and first Google Public APIs have been leaked to git. Revoke them and use new Client Keys. (Public API isn't use anywhere anymore)

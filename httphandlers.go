@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -133,10 +134,19 @@ func sensorList() { // When we add/remove sensors manually, make this run once a
 	// So, when testing with 1.000.000 sensors the code needed many minutes (maybe hour?) to enumerate the
 	// sensors. Now it takes 1 second!!!
 	var buffer bytes.Buffer
+	tmpList := make(map[string]string)
 	for _, s := range d.List() {
+		tmpList[d.Info(s).Name] = s
+	}
+	var tmpNames []string
+	for k := range tmpList {
+		tmpNames = append(tmpNames, k)
+	}
+	sort.Strings(tmpNames)
+	for _, n := range tmpNames {
 		buffer.WriteString(`
                  <li>
-                   <a href="/view/` + s + `">` + d.Info(s).Name + `</a>
+                   <a href="/view/` + tmpList[n] + `">` + n + `</a>
                  </li>`)
 	}
 	SensorList = template.HTML(buffer.String())
