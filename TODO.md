@@ -1,7 +1,7 @@
 # Short Term
 
-- _Accept sensor values only in historical order._
-- _Home page show live updates_
+- _DONE_ _Accept sensor values only in historical order._
+- _DONE_ _Home page show live updates_
 
 # For production
 
@@ -17,8 +17,9 @@
 - Instead of UUID use a 10-12 character [a-zA-Z0-9] identifier. First two characters keep the same, they may act as routing in the feature.
 - Use a second UUID for logging, so that you can change it if needed (eg it leaked to bad party and user needs to change it)
 - _DONE_ email when a sensor hasn't send a value for a user-defined period
-- **IMPORTANT** maps aren't concurrency safe, check if I always use mutex (maybe -race?)
-# For OpenSourcing
+-  **IMPORTANT** maps aren't concurrency safe, check if I always use mutex (maybe -race?)
+
+# For Making Public
 
 - Google Client Keys and first Google Public APIs have been leaked to git. Revoke them and use new Client Keys. (Public API isn't use anywhere anymore)
 
@@ -29,11 +30,11 @@
 - db.json: save only when needed and with every flush
 - Share public sensor
 - Aggregate sensors (many sources -> one sensor)
-- Log to be: /log/UID/SID/[st]/timestamp. UID instead of username to prevent guessing **No! Maybe exposes personal data. Ties UID to SID maybe.**
-- Manually _add_/delete sensors
+- _DONE_ Log to be: /log/UID/SID/[st]/timestamp. UID instead of username to prevent guessing **No! Maybe exposes personal data. Ties UID to SID maybe.**
+- _SEMI DONE_ Manually _add_/delete sensors
 - Cache/expire static items
 - _DONE_ **DEMO** On replication part, store values when you can't send them and retry.
 - Embed graph
-- **TODO** _TEMP FIXED_ When we can't send to remote server, logging halts because we used a synchronous channel. I set the channel buffer to 1000000 instead of 1 to prevent temporarily this.
-- **TODO** sendRemoteReadings() has a hard limit on how many entries it will keep in case of timeout. Also it resends all values to all servers on failure. Something more elegant IIO.
-- a more elegan solution for robots.txt which now is part of homeHandler ?
+-  **TODO** _TEMP FIXED_ When we can't send to remote server, logging halts because we used a synchronous channel. I set the channel buffer to 1000000 instead of 1 to prevent temporarily this.
+-  **TODO** _TEMP FIXED_ sendRemoteReadings() has a hard limit on how many entries it will keep in case of timeout. Also it resends all values to all servers on failure. Something more elegant IIO.
+- a more elegant solution for robots.txt which now is part of homeHandler ?
