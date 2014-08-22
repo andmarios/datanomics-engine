@@ -1,4 +1,15 @@
-Datanomics implements a server to log sensor values through simple GET requests and let various clients to retrieve them.
+Datanomics implements a server to log sensor values through simple GET and/or POST requests and let various clients to retrieve them.
+
+---
+__Disclaimer__
+
+Usually I upload my projects to Github to share them with the world. The primary motive for adding Datanomics to Github though is to help me with deployment.
+For this reason I haven't clean up the project, neither I tried to make it easy for everyone to understand. If it suits you feel free to use it (AGPL 3.0 license applies) but I can't guarantee updates, an always consistent state, help or documentation.
+
+There is a second part to the project, the web interface, which has html templates and javascript libraries as well as third party javascript and css libraries. It will be released at a later time.
+
+---
+
 
 To compile, place (or link) datanomics to your GOPATH src directory and run build.
 Example:
@@ -7,16 +18,16 @@ Example:
     $ go build datanomics
 
 
-Sensor requests.
+# Sensor requests.
 
-Simple log:
+Simple GET request will log with server's time:
 
-    $ curl http://127.0.0.1:8080/log/<SENSOR-UUID>/<SENSOR-FLOAT-VALUE>
+    $ curl http://datanomics/log/<SENSOR-UUID>/<SENSOR-FLOAT-VALUE>
 
-Custom time:
+You can set your own timestamp:
 
-    $ curl http://127.0.0.1:8080/log/<SENSOR-UUID>/<SENSOR-FLOAT-VALUE>/t/<UNIX-TIME-IN-SECONDS>
+    $ curl http://datanomics/log/<SENSOR-UUID>/<SENSOR-FLOAT-VALUE>/t/<UNIX-TIME-IN-SECONDS>
 
-Seconds since time:
+You can set how many seconds passed since your measurement and server will subtract them from its time:
 
-    $ curl http://127.0.0.1:8080/log/<SENSOR-UUID>/<SENSOR-FLOAT-VALUE>/s/<SECONDS-SINCE-LOGGING>
+    $ curl http://datanomics/log/<SENSOR-UUID>/<SENSOR-FLOAT-VALUE>/s/<SECONDS-SINCE-LOGGING>
